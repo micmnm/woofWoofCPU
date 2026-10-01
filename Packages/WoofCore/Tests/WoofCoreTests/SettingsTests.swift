@@ -2,16 +2,22 @@ import Foundation
 import Testing
 @testable import WoofCore
 
+/// Each test gets a throwaway domain. An absolute-path suite keeps its plist out of
+/// ~/Library/Preferences, where cfprefsd leaves an empty file behind even after removal.
 @MainActor
-@Suite struct SettingsStoreTests {
+@Suite final class SettingsStoreTests {
+    let suite = FileManager.default.temporaryDirectory.appending(path: "woof.tests.\(UUID().uuidString)").path
     let defaults: UserDefaults
     let key = EntityKey.app(bundleID: "com.google.Chrome")
     let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     init() {
-        let suite = "woof.tests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
+    }
+
+    deinit {
+        UserDefaults.standard.removePersistentDomain(forName: suite)
+        try? FileManager.default.removeItem(atPath: suite + ".plist")
     }
 
     @Test func defaultsMatchSpec() {
