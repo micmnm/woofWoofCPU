@@ -5,6 +5,7 @@ export DEVELOPER_DIR ?= /Applications/Xcode.app/Contents/Developer
 ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 DERIVED := $(ROOT)/build/DerivedData
 APP := $(DERIVED)/Build/Products/Debug/woofWoofCPU.app
+RELEASE_APP := $(DERIVED)/Build/Products/Release/woofWoofCPU.app
 
 .PHONY: test project build run install clean
 
@@ -23,10 +24,12 @@ run: build
 	-pkill -x woofWoofCPU
 	open $(APP)
 
-# Launch at login is most reliable from /Applications.
-install: build
+# Launch at login is most reliable from /Applications. Installs a Release build (Debug costs more CPU).
+install: project
+	xcodebuild -quiet -project $(ROOT)/WoofWoofCPU.xcodeproj -scheme WoofWoofCPU \
+		-destination "platform=macOS,arch=arm64" -configuration Release -derivedDataPath $(DERIVED) build
 	-pkill -x woofWoofCPU
-	ditto $(APP) /Applications/woofWoofCPU.app
+	ditto $(RELEASE_APP) /Applications/woofWoofCPU.app
 
 clean:
 	rm -rf $(ROOT)/build $(ROOT)/Packages/WoofCore/.build $(ROOT)/WoofWoofCPU.xcodeproj
