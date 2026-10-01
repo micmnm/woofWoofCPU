@@ -107,6 +107,26 @@ import Testing
         #expect(eval(&engine, [breach(id: 9, progress: 1)], at: 4, muted: [entityKey]).isEmpty)
     }
 
+    @Test func snoozedBreachAlertsAgainOnceTheSnoozeEnds() {
+        var engine = MoodEngine()
+        #expect(eval(&engine, [breach(progress: 1)]).map(\.id) == [1])
+        #expect(eval(&engine, [breach(progress: 1)], at: 2, muted: [key.entity]).isEmpty)
+        #expect(engine.mood == .napping)
+        let again = eval(&engine, [breach(progress: 1)], at: 4)
+        #expect(again.map(\.id) == [1])
+        #expect(engine.mood == .barking)
+    }
+
+    @Test func ignoredBreachNeverAlertsAgainThisEpisode() {
+        var engine = MoodEngine()
+        _ = eval(&engine, [breach(progress: 1)])
+        engine.ignore(breachID: 1)
+        #expect(eval(&engine, [breach(progress: 1)], at: 2).isEmpty)
+        #expect(eval(&engine, [breach(progress: 1)], at: 4, muted: [key.entity]).isEmpty)
+        #expect(eval(&engine, [breach(progress: 1)], at: 6).isEmpty)
+        #expect(engine.mood == .napping)
+    }
+
     @Test func pausedIsAlwaysNapping() {
         var engine = MoodEngine()
         let alerts = eval(&engine, [breach(progress: 1)], paused: true)

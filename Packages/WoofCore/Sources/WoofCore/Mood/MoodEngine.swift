@@ -44,7 +44,9 @@ public struct MoodEngine: Sendable {
         }
         openAlertIDs.formIntersection(activeIDs)
         sulkingIDs.formIntersection(activeIDs)
-        alertedIDs.formIntersection(allIDs)
+        // Pruned against active (not all) breaches, so one re-alerts when its snooze or always-ignore
+        // ends; Ignore still covers the whole episode through `ignoredIDs`.
+        alertedIDs.formIntersection(activeIDs)
         ignoredIDs.formIntersection(allIDs)
 
         let newAlerts = active.filter { $0.progress >= 1 && !alertedIDs.contains($0.id) }
