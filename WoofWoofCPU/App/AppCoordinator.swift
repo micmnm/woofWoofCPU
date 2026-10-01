@@ -42,8 +42,14 @@ final class AppCoordinator {
     private(set) var mood: DogMood = .napping
     private(set) var alertingKeys: Set<EntityKey> = []
     private(set) var rowStatus: [RowID: RowStatus] = [:]
+    /// Alerting entities first, then by severity, then by the chosen resource; rebuilt once per change.
+    private(set) var sortedEntities: [Entity] = []
+    /// The most severe active breach per entity.
+    private var breachByEntity: [EntityKey: Breach] = [:]
     var popoverMode: PopoverMode = .list
-    var sortResource: SortResource = .cpu
+    var sortResource: SortResource = .cpu {
+        didSet { if sortResource != oldValue { resort() } }
+    }
 
     @ObservationIgnored var onMoodChange: ((DogMood) -> Void)?
     @ObservationIgnored var onAlert: (() -> Void)?
@@ -54,6 +60,7 @@ final class AppCoordinator {
     @ObservationIgnored private let actions: ProcessActions
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    @ObservationIgnored private var samplerNeedsReset = false
     @ObservationIgnored private let log = Logger(subsystem: "com.woofwoofcpu", category: "coordinator")
     let currentUID = getuid()
 
@@ -81,12 +88,21 @@ final class AppCoordinator {
                 await self.tick()
                 let calm = self.mood == .napping && SystemInfo.isOnBattery
                 let interval = calm ? Self.calmBatteryTickInterval : Self.tickInterval
-                try? await Task.sleep(for: .seconds(interval))
+                try? await Task.sleep(for: .seconds(interval), tolerance: .seconds(interval / 10))
             }
         }
     }
 
+    /// While paused nothing is sampled; the tick only notices when the pause has ended.
     func tick() async {
+        if settings.isPaused(now: Date()) {
+            samplerNeedsReset = true
+            return
+        }
+        if samplerNeedsReset {
+            samplerNeedsReset = false
+            await sampler.reset()
+        }
         let now = SystemInfo.uptime
         let sampled = await sampler.sample(now: now)
         apply(sampled, now: now)
@@ -103,15 +119,23 @@ final class AppCoordinator {
             paused: settings.isPaused(now: date),
             now: now
         )
-        entities = sampled
-        breaches = step.breaches
+        if entities != sampled { entities = sampled }
+        pruneRowStatus(for: sampled)
+        publish(step, date: date)
+    }
+
+    /// @Observable invalidates on every write, even an equal one, so unchanged values are not reassigned.
+    private func publish(_ step: WatchPipeline.Step, date: Date) {
+        if breaches != step.breaches { breaches = step.breaches }
         let engine = pipeline.engine
-        activeBreaches = step.breaches.filter {
+        let active = step.breaches.filter {
             !settings.isMuted($0.key.entity, now: date) && !engine.isIgnored(breachID: $0.id)
         }
-        pruneRowStatus(for: sampled)
+        if activeBreaches != active { activeBreaches = active }
         let open = engine.openAlertIDs
-        alertingKeys = Set(step.breaches.filter { open.contains($0.id) }.map(\.key.entity))
+        let alerting = Set(step.breaches.filter { open.contains($0.id) }.map(\.key.entity))
+        if alertingKeys != alerting { alertingKeys = alerting }
+        resort()
         updateMood(step.mood)
         if !step.newAlerts.isEmpty {
             popoverMode = .alert
@@ -120,6 +144,26 @@ final class AppCoordinator {
             popoverMode = .list
         }
         onTick?()
+    }
+
+    private func resort() {
+        var byEntity: [EntityKey: Breach] = [:]
+        for breach in activeBreaches where (byEntity[breach.key.entity]?.progress ?? -1) < breach.progress {
+            byEntity[breach.key.entity] = breach
+        }
+        if breachByEntity != byEntity { breachByEntity = byEntity }
+        let resource: Resource = sortResource == .cpu ? .cpu : .memory
+        let keyed = entities.map { entity in
+            (entity, alerting: alertingKeys.contains(entity.key), progress: byEntity[entity.key]?.progress ?? -1,
+             value: entity.value(for: resource))
+        }
+        let sorted = keyed.sorted { a, b in
+            if a.alerting != b.alerting { return a.alerting }
+            if a.progress != b.progress { return a.progress > b.progress }
+            return a.value > b.value
+        }
+        .map { $0.0 }
+        if sortedEntities != sorted { sortedEntities = sorted }
     }
 
     /// Entity keys survive relaunches, so a status must not outlive the entity (or pid) it was set on.
@@ -159,20 +203,7 @@ final class AppCoordinator {
     // MARK: Popover data
 
     func breach(for key: EntityKey) -> Breach? {
-        activeBreaches.filter { $0.key.entity == key }.max { $0.progress < $1.progress }
-    }
-
-    /// Alerting entities first, then by severity, then by the chosen resource.
-    var sortedEntities: [Entity] {
-        let resource: Resource = sortResource == .cpu ? .cpu : .memory
-        return entities.sorted { a, b in
-            let aAlert = alertingKeys.contains(a.key), bAlert = alertingKeys.contains(b.key)
-            if aAlert != bAlert { return aAlert }
-            let aProgress = breach(for: a.key)?.progress ?? -1
-            let bProgress = breach(for: b.key)?.progress ?? -1
-            if aProgress != bProgress { return aProgress > bProgress }
-            return a.value(for: resource) > b.value(for: resource)
-        }
+        breachByEntity[key]
     }
 
     func series(for key: EntityKey, resource: Resource) -> [Double] {
@@ -250,6 +281,7 @@ final class AppCoordinator {
         guard popoverMode == .alert else { return }
         pipeline.engine.alertDismissed()
         alertingKeys = []
+        resort()
         popoverMode = .list
         updateMood(pipeline.engine.mood)
     }
@@ -264,8 +296,14 @@ final class AppCoordinator {
         reevaluate()
     }
 
-    /// Re-run the pipeline on the last sample so actions show up immediately.
+    /// Re-runs only the mood engine on the current breaches so actions show up immediately.
     private func reevaluate() {
-        apply(entities, now: SystemInfo.uptime)
+        let date = Date()
+        let step = pipeline.reevaluate(
+            isMuted: { [settings] key in settings.isMuted(key, now: date) },
+            paused: settings.isPaused(now: date),
+            now: SystemInfo.uptime
+        )
+        publish(step, date: date)
     }
 }
