@@ -65,4 +65,14 @@ import Testing
         #expect(signaller.send(0, to: 1) == .notAllowed) // launchd is root
         #expect(signaller.isAlive(getpid()))
     }
+
+    /// kill(0, …) hits our own process group and kill(-1, …) every process we own.
+    @Test func posixSignallerRefusesNonPositivePIDs() {
+        let signaller = PosixSignaller(quitApp: { _ in false })
+        // Signal 0 only checks permissions, so this is harmless even without the guard.
+        #expect(signaller.send(0, to: 0) == .failed(EINVAL))
+        #expect(signaller.send(0, to: -1) == .failed(EINVAL))
+        #expect(!signaller.isAlive(0))
+        #expect(!signaller.isAlive(-1))
+    }
 }

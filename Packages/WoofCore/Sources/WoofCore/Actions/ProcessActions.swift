@@ -23,7 +23,9 @@ public struct PosixSignaller: ProcessSignaller {
         quitAppHandler = quitApp
     }
 
+    /// pid ≤ 0 is refused: kill(0, …) signals our own process group, kill(-1, …) every process we own.
     public func send(_ signal: Int32, to pid: Int32) -> SignalResult {
+        guard pid > 0 else { return .failed(EINVAL) }
         if kill(pid, signal) == 0 { return .sent }
         switch errno {
         case EPERM: return .notAllowed
@@ -33,7 +35,7 @@ public struct PosixSignaller: ProcessSignaller {
     }
 
     public func isAlive(_ pid: Int32) -> Bool {
-        kill(pid, 0) == 0 || errno == EPERM
+        pid > 0 && (kill(pid, 0) == 0 || errno == EPERM)
     }
 
     public func quitApp(pid: Int32) -> Bool {
