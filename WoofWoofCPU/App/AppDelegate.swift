@@ -39,6 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             status: status,
             optionKey: optionKey,
             content: PopoverView(coordinator: coordinator, optionKey: optionKey) { [weak self] in
+                // Leaving an alert for Settings counts as a dismissal (no-op unless popoverMode == .alert).
+                self?.coordinator.popoverDismissedByUser()
                 self?.popover.close()
                 self?.settingsWindow.show()
             }
