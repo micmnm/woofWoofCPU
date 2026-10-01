@@ -77,9 +77,22 @@ struct EntityRow: View {
 
     private var icon: Image {
         if let path = entity.bundlePath {
-            return Image(nsImage: NSWorkspace.shared.icon(forFile: path))
+            return Image(nsImage: AppIcons.icon(forBundle: path))
         }
         return Image(systemName: "terminal")
+    }
+}
+
+/// `NSWorkspace.icon(forFile:)` hits the disk; rows re-render every tick while the popover is open.
+@MainActor
+enum AppIcons {
+    private static var cache: [String: NSImage] = [:]
+
+    static func icon(forBundle path: String) -> NSImage {
+        if let cached = cache[path] { return cached }
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        cache[path] = icon
+        return icon
     }
 }
 

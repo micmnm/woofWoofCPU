@@ -29,9 +29,11 @@ final class DogAnimator {
         frameIndex = 0
         show()
         guard skin.frames(for: mood).count > 1 else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: skin.frameDuration(for: mood), repeats: true) { [weak self] _ in
+        let interval = skin.frameDuration(for: mood)
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.advance() }
         }
+        timer?.tolerance = interval / 10
     }
 
     private func advance() {

@@ -30,12 +30,10 @@ final class PopoverPanel: NSPanel {
     }
 }
 
-/// Per-open state the hosted view reads. Bumping `openCount` re-identifies the content, so its
-/// `@State` (expanded rows, "+N more", hover freeze) starts fresh on every open.
+/// State the hosted view reads.
 @MainActor
 @Observable
 final class PopoverSession {
-    var openCount = 0
     var maxListHeight: CGFloat = 420
 }
 
@@ -47,7 +45,6 @@ private struct PopoverRoot<Content: View>: View {
 
     var body: some View {
         content
-            .id(session.openCount)
             .environment(\.popoverMaxListHeight, session.maxListHeight)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             .fixedSize()
@@ -59,7 +56,10 @@ private struct PopoverRoot<Content: View>: View {
 final class PopoverController {
     private let panel = PopoverPanel()
     private let session = PopoverSession()
-    private var host: NSHostingController<PopoverRoot<AnyView>>!
+    private let content: AnyView
+    /// Exists only while shown: a fresh host per open resets the view's `@State` (expanded rows,
+    /// "+N more", hover freeze), and a closed popover has no view left re-rendering on every tick.
+    private var host: NSHostingController<PopoverRoot<AnyView>>?
     private let status: StatusItemController
     private let optionKey: OptionKeyMonitor
     private var clickMonitor: Any?
@@ -72,14 +72,7 @@ final class PopoverController {
     init<Content: View>(status: StatusItemController, optionKey: OptionKeyMonitor, content: Content) {
         self.status = status
         self.optionKey = optionKey
-        host = NSHostingController(
-            rootView: PopoverRoot(content: AnyView(content), session: session) { [weak self] size in
-                self?.contentSizeChanged(size)
-            }
-        )
-        // The panel is sized by `place(size:)`; AppKit's own resizing keeps the bottom edge fixed.
-        host.sizingOptions = []
-        panel.contentViewController = host
+        self.content = AnyView(content)
         panel.onCancel = { [weak self] in self?.dismissByUser() }
     }
 
@@ -89,10 +82,11 @@ final class PopoverController {
     }
 
     /// `activate: false` (alert opens) only orders the panel front, so typing elsewhere is not captured;
-    /// the first click into it makes it key.
+    /// the first click into it makes it key. Does nothing when no screen is attached.
     func show(activate: Bool = false) {
-        let screen = targetScreen()
+        guard let screen = targetScreen() else { return }
         session.maxListHeight = min(520, max(120, screen.visibleFrame.height - 260))
+        let host = self.host ?? makeHost()
         place(size: host.sizeThatFits(in: screen.visibleFrame.size), on: screen)
         panel.orderFrontRegardless()
         if activate { panel.makeKey() }
@@ -109,8 +103,25 @@ final class PopoverController {
         clickMonitor = nil
         optionKey.stop()
         panel.orderOut(nil)
-        // An Esc while hovering never delivers onHover(false), so the freeze would outlive the open.
-        session.openCount += 1
+        guard let retired = host else { return }
+        host = nil
+        panel.contentViewController = nil
+        panel.contentView = NSView()
+        // close() can run inside one of the hosted view's own button actions; release it afterwards.
+        Task { @MainActor in withExtendedLifetime(retired) {} }
+    }
+
+    private func makeHost() -> NSHostingController<PopoverRoot<AnyView>> {
+        let host = NSHostingController(
+            rootView: PopoverRoot(content: content, session: session) { [weak self] size in
+                self?.contentSizeChanged(size)
+            }
+        )
+        // The panel is sized by `place(size:)`; AppKit's own resizing keeps the bottom edge fixed.
+        host.sizingOptions = []
+        panel.contentViewController = host
+        self.host = host
+        return host
     }
 
     private func dismissByUser() {
@@ -120,15 +131,15 @@ final class PopoverController {
     }
 
     private func contentSizeChanged(_ size: CGSize) {
-        guard isShown, size != panel.frame.size else { return }
-        place(size: size, on: targetScreen())
+        guard isShown, size != panel.frame.size, let screen = targetScreen() else { return }
+        place(size: size, on: screen)
     }
 
-    private func targetScreen() -> NSScreen {
+    private func targetScreen() -> NSScreen? {
         if let anchor = status.anchorRect, let screen = NSScreen.screens.first(where: { $0.frame.intersects(anchor) }) {
             return screen
         }
-        return NSScreen.main ?? NSScreen.screens[0]
+        return NSScreen.main ?? NSScreen.screens.first
     }
 
     /// Under the dog when the menu bar is visible; top-right of the active screen in full-screen.
