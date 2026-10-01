@@ -14,7 +14,8 @@ final class PopoverPanel: NSPanel {
             defer: true
         )
         isFloatingPanel = true
-        level = .statusBar
+        // Above the menu bar (status items sit at .statusBar), so no part can render behind it.
+        level = .popUpMenu
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         hidesOnDeactivate = false
         isMovable = false
@@ -54,6 +55,10 @@ private struct PopoverRoot<Content: View>: View {
 
 @MainActor
 final class PopoverController {
+    static let width: CGFloat = 380
+    /// Header, picker, footer and padding around the scrolling list.
+    static let chromeHeight: CGFloat = 240
+
     private let panel = PopoverPanel()
     private let session = PopoverSession()
     private let content: AnyView
@@ -63,6 +68,8 @@ final class PopoverController {
     private let status: StatusItemController
     private let optionKey: OptionKeyMonitor
     private var clickMonitor: Any?
+    /// Last size the content reported; it can arrive during the first layout, before the panel is visible.
+    private var contentSize: CGSize?
 
     /// Called when the user dismisses the popover (Esc or click outside), not when we close it.
     var onUserDismiss: (() -> Void)?
@@ -85,10 +92,14 @@ final class PopoverController {
     /// the first click into it makes it key. Does nothing when no screen is attached.
     func show(activate: Bool = false) {
         guard let screen = targetScreen() else { return }
-        session.maxListHeight = min(520, max(120, screen.visibleFrame.height - 260))
+        let available = availableHeight(on: screen)
+        session.maxListHeight = min(520, max(120, available - Self.chromeHeight))
         let host = self.host ?? makeHost()
-        place(size: host.sizeThatFits(in: screen.visibleFrame.size), on: screen)
+        let fitted = host.sizeThatFits(in: CGSize(width: Self.width, height: available))
+        place(size: contentSize ?? fitted, on: screen)
         panel.orderFrontRegardless()
+        // That first setFrame lays the content out and reports its real size while still hidden.
+        if let contentSize, contentSize.height != panel.frame.height { place(size: contentSize, on: screen) }
         if activate { panel.makeKey() }
         optionKey.start()
         if clickMonitor == nil {
@@ -105,6 +116,7 @@ final class PopoverController {
         panel.orderOut(nil)
         guard let retired = host else { return }
         host = nil
+        contentSize = nil
         panel.contentViewController = nil
         panel.contentView = NSView()
         // close() can run inside one of the hosted view's own button actions; release it afterwards.
@@ -131,6 +143,7 @@ final class PopoverController {
     }
 
     private func contentSizeChanged(_ size: CGSize) {
+        contentSize = size
         guard isShown, size != panel.frame.size, let screen = targetScreen() else { return }
         place(size: size, on: screen)
     }
@@ -142,17 +155,26 @@ final class PopoverController {
         return NSScreen.main ?? NSScreen.screens.first
     }
 
+    /// Under the dog, never above the visible frame: the dog sits inside the menu bar, so its
+    /// own bottom edge can be higher than the menu bar's.
+    private func topEdge(on screen: NSScreen) -> CGFloat {
+        let limit = screen.visibleFrame.maxY - 4
+        guard let anchor = status.anchorRect else { return min(screen.frame.maxY - 8, limit) }
+        return min(anchor.minY - 6, limit)
+    }
+
+    private func availableHeight(on screen: NSScreen) -> CGFloat {
+        topEdge(on: screen) - (screen.visibleFrame.minY + 8)
+    }
+
     /// Under the dog when the menu bar is visible; top-right of the active screen in full-screen.
+    /// Capped to the space under the dog (show() sizes the list to fit it) rather than pushed up.
     private func place(size: CGSize, on screen: NSScreen) {
-        var origin: NSPoint
-        if let anchor = status.anchorRect {
-            origin = NSPoint(x: anchor.midX - size.width + 40, y: anchor.minY - size.height - 6)
-        } else {
-            origin = NSPoint(x: screen.frame.maxX - size.width - 12, y: screen.frame.maxY - size.height - 8)
-        }
         let bounds = screen.visibleFrame
-        origin.x = min(max(origin.x, bounds.minX + 8), bounds.maxX - size.width - 8)
-        origin.y = max(origin.y, bounds.minY + 8)
-        panel.setFrame(NSRect(origin: origin, size: size), display: true)
+        let top = topEdge(on: screen)
+        let height = min(size.height, availableHeight(on: screen))
+        var x = status.anchorRect.map { $0.midX - size.width + 40 } ?? (screen.frame.maxX - size.width - 12)
+        x = min(max(x, bounds.minX + 8), bounds.maxX - size.width - 8)
+        panel.setFrame(NSRect(x: x, y: top - height, width: size.width, height: height), display: true)
     }
 }

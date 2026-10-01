@@ -33,7 +33,7 @@ struct PopoverView: View {
             footer
         }
         .padding(12)
-        .frame(width: 380)
+        .frame(width: PopoverController.width)
     }
 
     // MARK: Header
