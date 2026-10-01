@@ -49,10 +49,10 @@ struct GeneralSettings: View {
                     }
                 }
                 DisclosureGroup("Advanced") {
-                    LimitField(title: "CPU above (%)", value: limitBinding(\.cpu.threshold, scale: 1))
-                    LimitField(title: "CPU for (minutes)", value: limitBinding(\.cpu.window, scale: 60))
-                    LimitField(title: "Memory above (GB)", value: limitBinding(\.memory.threshold, scale: Self.fractionPerGB, maxStored: 1))
-                    LimitField(title: "Memory for (minutes)", value: limitBinding(\.memory.window, scale: 60))
+                    LimitField(title: "CPU above (%)", value: limitBinding(\.cpu.threshold, scale: 1, minShown: 5))
+                    LimitField(title: "CPU for (minutes)", value: limitBinding(\.cpu.window, scale: 60, minShown: 0.5))
+                    LimitField(title: "Memory above (GB)", value: limitBinding(\.memory.threshold, scale: Self.fractionPerGB, minShown: 0.5, maxStored: 1))
+                    LimitField(title: "Memory for (minutes)", value: limitBinding(\.memory.window, scale: 60, minShown: 0.5))
                 }
             }
             Section {
@@ -84,12 +84,15 @@ struct GeneralSettings: View {
     private static let fractionPerGB = Double(1 << 30) / Double(SystemInfo.physicalMemory)
 
     /// Displayed value = stored value / scale. Editing switches the slider to Custom.
-    private func limitBinding(_ keyPath: WritableKeyPath<Limits, Double>, scale: Double, maxStored: Double = .infinity) -> Binding<Double> {
+    /// `minShown` keeps a 0 window (instant bark) or a 0 threshold (everything breaches) out.
+    private func limitBinding(
+        _ keyPath: WritableKeyPath<Limits, Double>, scale: Double, minShown: Double, maxStored: Double = .infinity
+    ) -> Binding<Double> {
         Binding(
             get: { settings.limits[keyPath: keyPath] / scale },
             set: { newValue in
                 var limits = settings.limits
-                limits[keyPath: keyPath] = min(maxStored, max(0, newValue) * scale)
+                limits[keyPath: keyPath] = min(maxStored, max(minShown, newValue) * scale)
                 settings.limitsSetting = .custom(limits)
             }
         )
