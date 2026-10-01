@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: SettingsWindowController!
     private let bark = BarkPlayer()
     private let optionKey = OptionKeyMonitor()
+    private let iconUpdater = AppIconUpdater()
 
     static func main() {
         let app = NSApplication.shared
@@ -35,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         status = StatusItemController()
         animator = DogAnimator(button: status.button, skin: coordinator.skin)
+        iconUpdater.apply(coordinator.skin)
         popover = PopoverController(
             status: status,
             optionKey: optionKey,
@@ -66,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func refreshDog() {
         animator.update(mood: coordinator.mood, skin: coordinator.skin)
+        iconUpdater.apply(coordinator.skin)
     }
 
     private func makeMenu() -> NSMenu {
