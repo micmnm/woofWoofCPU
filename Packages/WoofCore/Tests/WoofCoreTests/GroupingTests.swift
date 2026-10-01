@@ -3,6 +3,7 @@ import Testing
 
 @Suite struct GroupingTests {
     let chrome = "/Applications/Google Chrome.app"
+    let terminal = "/System/Applications/Utilities/Terminal.app"
     var grouper: AppGrouper {
         AppGrouper(
             selfPID: 999,
@@ -43,7 +44,47 @@ import Testing
             sample(2, name: "WebContent", path: "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent", responsible: 1, cpu: 80),
         ])
         #expect(entities.count == 1)
+        #expect(entities[0].key == .app(bundleID: "com.apple.Safari"))
+        #expect(Set(entities[0].members.map(\.process.pid)) == [1, 2])
         #expect(entities[0].cpuPercent == 80)
+    }
+
+    @Test func bundledToolRunFromTerminalGroupsUnderItsOwnBundle() {
+        let python = "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/Resources/Python.app"
+        let grouper = AppGrouper(
+            selfPID: 999, currentUID: 501,
+            appInfo: StubAppInfo(table: [
+                python: AppInfo(bundleID: "org.python.python", name: "Python"),
+                terminal: AppInfo(bundleID: "com.apple.Terminal", name: "Terminal"),
+            ])
+        )
+        let entities = grouper.group([
+            sample(1, name: "Terminal", path: "\(terminal)/Contents/MacOS/Terminal"),
+            sample(2, name: "Python", path: "\(python)/Contents/MacOS/Python", responsible: 1, memory: 8 * gb),
+        ])
+        let pythonEntity = entities.first { $0.key == .app(bundleID: "org.python.python") }
+        #expect(pythonEntity?.members.map(\.process.pid) == [2])
+        #expect(pythonEntity?.mainPID == 2)
+        #expect(entities.first { $0.key == .app(bundleID: "com.apple.Terminal") }?.members.map(\.process.pid) == [1])
+    }
+
+    @Test func xcodeToolchainBinaryRunFromTerminalGroupsUnderXcode() {
+        let xcode = "/Applications/Xcode.app"
+        let grouper = AppGrouper(
+            selfPID: 999, currentUID: 501,
+            appInfo: StubAppInfo(table: [
+                xcode: AppInfo(bundleID: "com.apple.dt.Xcode", name: "Xcode"),
+                terminal: AppInfo(bundleID: "com.apple.Terminal", name: "Terminal"),
+            ])
+        )
+        let entities = grouper.group([
+            sample(1, name: "Terminal", path: "\(terminal)/Contents/MacOS/Terminal"),
+            sample(2, name: "swift-frontend", path: "\(xcode)/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend", responsible: 1, cpu: 300),
+        ])
+        let xcodeEntity = entities.first { $0.key == .app(bundleID: "com.apple.dt.Xcode") }
+        #expect(xcodeEntity?.members.map(\.process.pid) == [2])
+        #expect(xcodeEntity?.cpuPercent == 300)
+        #expect(entities.first { $0.key == .app(bundleID: "com.apple.Terminal") }?.cpuPercent == 0)
     }
 
     @Test func commandLineToolsStayStandaloneEvenWhenTerminalIsResponsible() {

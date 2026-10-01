@@ -125,12 +125,10 @@ All `WoofCore` units are pure or depend on injected protocols (`Clock`, `Process
 
 An **Entity** is what the dog judges: either an **app** (a group of processes) or a **standalone process**.
 
-Each process is assigned to an app using, in order:
+Only **bundled code** is grouped into apps:
 
-Only **bundled code** is grouped: processes whose executable path contains `.app/` or `.xpc/`. For those, in order:
-
-1. **Responsible PID** via `responsibility_get_pid_responsible_for_pid` (private libsystem symbol, looked up with `dlsym`; skipped if missing). This is what Activity Monitor uses. It maps e.g. Safari's `com.apple.WebKit.WebContent` processes to Safari.
-2. **Outermost `.app` bundle in the executable path** — e.g. `…/Google Chrome.app/Contents/Frameworks/…/Google Chrome Helper (Renderer).app/…` → `Google Chrome.app`.
+1. A process whose executable path contains `.app/` belongs to the **outermost `.app` in its own path** (e.g. a `…/Google Chrome.app/…/Google Chrome Helper (Renderer).app/…` helper → `Google Chrome.app`), even when another app is responsible for it: `python3` (`…/Python.app/…`) or `swift-frontend` (inside `Xcode.app`) run from Terminal group under Python and Xcode, never Terminal.
+2. A process whose path contains `.xpc/` but no `.app/` (a system XPC service) belongs to the app of its **responsible PID**, via `responsibility_get_pid_responsible_for_pid` (private libsystem symbol, looked up with `dlsym`; skipped if missing). This is what Activity Monitor uses. It maps e.g. Safari's `com.apple.WebKit.WebContent` processes to Safari.
 
 Everything else is a **standalone** entity keyed by executable path, e.g. a runaway `node`, `python` or `yes`. This applies even when Terminal is its responsible process: grouping command-line tools by responsible PID or parent chain would blame Terminal for them. Processes sharing an executable path are one entity with several members.
 

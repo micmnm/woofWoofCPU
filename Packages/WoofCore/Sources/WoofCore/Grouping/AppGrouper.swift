@@ -88,18 +88,18 @@ public struct AppGrouper: Sendable {
         }
     }
 
-    /// Only bundled code (inside a `.app` or `.xpc`) is grouped; plain CLI tools stay standalone,
-    /// otherwise a runaway `node` started from Terminal would be blamed on Terminal.
+    /// Code inside a `.app` belongs to its own outermost app; the responsible PID is used only for
+    /// `.xpc` services outside any app (e.g. WebKit's WebContent → Safari). Trusting it more widely
+    /// would blame Terminal for `python3` (Python.app) or `swift-frontend` (Xcode.app), and CLI tools
+    /// stay standalone for the same reason.
     func appBundlePath(for sample: ProcessSample, byPID: [Int32: ProcessSample]) -> String? {
-        guard let path = sample.process.path,
-              path.contains(".app/") || path.contains(".xpc/") else { return nil }
-        if let responsible = sample.process.responsiblePID,
-           responsible != sample.process.pid,
-           let responsiblePath = byPID[responsible]?.process.path,
-           let app = Self.outermostApp(in: responsiblePath) {
-            return app
-        }
-        return Self.outermostApp(in: path)
+        guard let path = sample.process.path else { return nil }
+        if path.contains(".app/") { return Self.outermostApp(in: path) }
+        guard path.contains(".xpc/"),
+              let responsible = sample.process.responsiblePID,
+              responsible != sample.process.pid,
+              let responsiblePath = byPID[responsible]?.process.path else { return nil }
+        return Self.outermostApp(in: responsiblePath)
     }
 
     public static func outermostApp(in path: String) -> String? {
