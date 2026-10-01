@@ -84,6 +84,19 @@ import Testing
         #expect(engine.mood == .barking)
     }
 
+    @Test func isIgnoredTracksTheIgnoredEpisodeOnly() {
+        var engine = MoodEngine()
+        _ = eval(&engine, [breach(id: 1, progress: 1), breach(id: 2, progress: 0.5, entity: .process(path: "/bin/cat"))])
+        #expect(!engine.isIgnored(breachID: 1))
+        engine.ignore(breachID: 1)
+        #expect(engine.isIgnored(breachID: 1))
+        #expect(!engine.isIgnored(breachID: 2))
+        _ = eval(&engine, [breach(id: 1, progress: 1)], at: 2)
+        #expect(engine.isIgnored(breachID: 1))
+        _ = eval(&engine, [], at: 4)
+        #expect(!engine.isIgnored(breachID: 1))
+    }
+
     @Test func snoozedOrIgnoredEntitiesNeverBarkAndAreNotProud() {
         var engine = MoodEngine()
         let entityKey = key.entity

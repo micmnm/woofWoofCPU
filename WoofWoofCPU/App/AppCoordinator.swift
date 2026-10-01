@@ -37,6 +37,8 @@ final class AppCoordinator {
     let settings: SettingsStore
     private(set) var entities: [Entity] = []
     private(set) var breaches: [Breach] = []
+    /// `breaches` minus snoozed, always-ignored and Ignored ones; drives sorting and the headline.
+    private(set) var activeBreaches: [Breach] = []
     private(set) var mood: DogMood = .napping
     private(set) var alertingKeys: Set<EntityKey> = []
     private(set) var rowStatus: [RowID: RowStatus] = [:]
@@ -103,7 +105,12 @@ final class AppCoordinator {
         )
         entities = sampled
         breaches = step.breaches
-        let open = pipeline.engine.openAlertIDs
+        let engine = pipeline.engine
+        activeBreaches = step.breaches.filter {
+            !settings.isMuted($0.key.entity, now: date) && !engine.isIgnored(breachID: $0.id)
+        }
+        pruneRowStatus(for: sampled)
+        let open = engine.openAlertIDs
         alertingKeys = Set(step.breaches.filter { open.contains($0.id) }.map(\.key.entity))
         updateMood(step.mood)
         if !step.newAlerts.isEmpty {
@@ -113,6 +120,17 @@ final class AppCoordinator {
             popoverMode = .list
         }
         onTick?()
+    }
+
+    /// Entity keys survive relaunches, so a status must not outlive the entity (or pid) it was set on.
+    private func pruneRowStatus(for sampled: [Entity]) {
+        guard !rowStatus.isEmpty else { return }
+        let pids = Dictionary(sampled.map { ($0.key, Set($0.members.map(\.process.pid))) }, uniquingKeysWith: { $0.union($1) })
+        let kept = rowStatus.filter { row, _ in
+            guard let members = pids[row.entity] else { return false }
+            return row.pid.map(members.contains) ?? true
+        }
+        if kept.count != rowStatus.count { rowStatus = kept }
     }
 
     private func updateMood(_ newMood: DogMood) {
@@ -141,7 +159,7 @@ final class AppCoordinator {
     // MARK: Popover data
 
     func breach(for key: EntityKey) -> Breach? {
-        breaches.filter { $0.key.entity == key }.max { $0.progress < $1.progress }
+        activeBreaches.filter { $0.key.entity == key }.max { $0.progress < $1.progress }
     }
 
     /// Alerting entities first, then by severity, then by the chosen resource.

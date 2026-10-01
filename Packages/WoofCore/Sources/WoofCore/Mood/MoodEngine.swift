@@ -85,6 +85,11 @@ public struct MoodEngine: Sendable {
         sulkingIDs.remove(breachID)
     }
 
+    /// True while this breach episode is ignored; cleared once the breach ends.
+    public func isIgnored(breachID: Int) -> Bool {
+        ignoredIDs.contains(breachID)
+    }
+
     public mutating func reset() {
         self = MoodEngine()
     }
