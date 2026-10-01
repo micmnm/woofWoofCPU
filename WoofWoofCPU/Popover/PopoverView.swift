@@ -10,6 +10,11 @@ struct PopoverView: View {
     @State private var showAll = false
     /// While the pointer is over the list, rows keep their order so clicks land on the intended row.
     @State private var frozenOrder: [EntityKey]?
+    /// Natural height of the rows; the scroll view shows them all until `maxListHeight`.
+    @State private var rowsHeight: CGFloat = 0
+    @Environment(\.popoverMaxListHeight) private var maxListHeight
+
+    private static let maxExpandedRows = 30
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -80,21 +85,29 @@ struct PopoverView: View {
     }
 
     private var list: some View {
-        let all = orderedEntities
+        // Every sampled process is an entity; past the top few dozen the rows are idle noise.
+        let all = Array(orderedEntities.prefix(Self.maxExpandedRows))
         let limit = showAll ? all.count : coordinator.settings.rowsShown
         let visible = Array(all.prefix(limit))
         return VStack(alignment: .leading, spacing: 2) {
-            ForEach(visible) { entity in
-                EntityRow(
-                    coordinator: coordinator,
-                    entity: entity,
-                    optionDown: optionKey.isOptionDown,
-                    expanded: Binding(
-                        get: { expanded.contains(entity.key) },
-                        set: { if $0 { expanded.insert(entity.key) } else { expanded.remove(entity.key) } }
-                    )
-                )
+            ScrollView {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(visible) { entity in
+                        EntityRow(
+                            coordinator: coordinator,
+                            entity: entity,
+                            optionDown: optionKey.isOptionDown,
+                            expanded: Binding(
+                                get: { expanded.contains(entity.key) },
+                                set: { if $0 { expanded.insert(entity.key) } else { expanded.remove(entity.key) } }
+                            )
+                        )
+                    }
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { rowsHeight = $0 }
             }
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(height: min(rowsHeight, maxListHeight))
             if all.count > visible.count {
                 Button("+\(all.count - visible.count) more…") { showAll = true }
                     .buttonStyle(.link)
@@ -143,4 +156,9 @@ struct PopoverView: View {
         }
         .font(.system(size: 11))
     }
+}
+
+extension EnvironmentValues {
+    /// Set by `PopoverController` from the screen height, so the panel never runs off-screen.
+    @Entry var popoverMaxListHeight: CGFloat = 420
 }

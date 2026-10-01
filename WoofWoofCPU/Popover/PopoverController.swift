@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import SwiftUI
 
 /// Non-activating panel so the popover never steals keyboard focus, and can float over full-screen apps.
@@ -29,9 +30,36 @@ final class PopoverPanel: NSPanel {
     }
 }
 
+/// Per-open state the hosted view reads. Bumping `openCount` re-identifies the content, so its
+/// `@State` (expanded rows, "+N more", hover freeze) starts fresh on every open.
+@MainActor
+@Observable
+final class PopoverSession {
+    var openCount = 0
+    var maxListHeight: CGFloat = 420
+}
+
+/// Lays the content out at its ideal size and reports it, so the panel is resized with its top edge pinned.
+private struct PopoverRoot<Content: View>: View {
+    let content: Content
+    let session: PopoverSession
+    let onSize: @MainActor (CGSize) -> Void
+
+    var body: some View {
+        content
+            .id(session.openCount)
+            .environment(\.popoverMaxListHeight, session.maxListHeight)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .fixedSize()
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
+    }
+}
+
 @MainActor
 final class PopoverController {
     private let panel = PopoverPanel()
+    private let session = PopoverSession()
+    private var host: NSHostingController<PopoverRoot<AnyView>>!
     private let status: StatusItemController
     private let optionKey: OptionKeyMonitor
     private var clickMonitor: Any?
@@ -44,23 +72,30 @@ final class PopoverController {
     init<Content: View>(status: StatusItemController, optionKey: OptionKeyMonitor, content: Content) {
         self.status = status
         self.optionKey = optionKey
-        let host = NSHostingController(
-            rootView: content.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        host = NSHostingController(
+            rootView: PopoverRoot(content: AnyView(content), session: session) { [weak self] size in
+                self?.contentSizeChanged(size)
+            }
         )
-        host.sizingOptions = [.preferredContentSize]
+        // The panel is sized by `place(size:)`; AppKit's own resizing keeps the bottom edge fixed.
+        host.sizingOptions = []
         panel.contentViewController = host
         panel.onCancel = { [weak self] in self?.dismissByUser() }
     }
 
+    /// The user's dog click: the panel takes key so Esc works straight away.
     func toggle() {
-        isShown ? dismissByUser() : show()
+        isShown ? dismissByUser() : show(activate: true)
     }
 
-    func show() {
-        panel.contentViewController?.view.layoutSubtreeIfNeeded()
-        position()
+    /// `activate: false` (alert opens) only orders the panel front, so typing elsewhere is not captured;
+    /// the first click into it makes it key.
+    func show(activate: Bool = false) {
+        let screen = targetScreen()
+        session.maxListHeight = min(520, max(120, screen.visibleFrame.height - 260))
+        place(size: host.sizeThatFits(in: screen.visibleFrame.size), on: screen)
         panel.orderFrontRegardless()
-        panel.makeKey()
+        if activate { panel.makeKey() }
         optionKey.start()
         if clickMonitor == nil {
             clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
@@ -74,6 +109,8 @@ final class PopoverController {
         clickMonitor = nil
         optionKey.stop()
         panel.orderOut(nil)
+        // An Esc while hovering never delivers onHover(false), so the freeze would outlive the open.
+        session.openCount += 1
     }
 
     private func dismissByUser() {
@@ -82,10 +119,20 @@ final class PopoverController {
         onUserDismiss?()
     }
 
+    private func contentSizeChanged(_ size: CGSize) {
+        guard isShown, size != panel.frame.size else { return }
+        place(size: size, on: targetScreen())
+    }
+
+    private func targetScreen() -> NSScreen {
+        if let anchor = status.anchorRect, let screen = NSScreen.screens.first(where: { $0.frame.intersects(anchor) }) {
+            return screen
+        }
+        return NSScreen.main ?? NSScreen.screens[0]
+    }
+
     /// Under the dog when the menu bar is visible; top-right of the active screen in full-screen.
-    private func position() {
-        let size = panel.contentViewController?.view.fittingSize ?? panel.frame.size
-        let screen = NSScreen.main ?? NSScreen.screens[0]
+    private func place(size: CGSize, on screen: NSScreen) {
         var origin: NSPoint
         if let anchor = status.anchorRect {
             origin = NSPoint(x: anchor.midX - size.width + 40, y: anchor.minY - size.height - 6)
@@ -94,6 +141,7 @@ final class PopoverController {
         }
         let bounds = screen.visibleFrame
         origin.x = min(max(origin.x, bounds.minX + 8), bounds.maxX - size.width - 8)
+        origin.y = max(origin.y, bounds.minY + 8)
         panel.setFrame(NSRect(origin: origin, size: size), display: true)
     }
 }
