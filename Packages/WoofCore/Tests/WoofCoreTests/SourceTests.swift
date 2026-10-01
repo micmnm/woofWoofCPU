@@ -24,4 +24,18 @@ import Testing
         #expect((me?.memoryBytes ?? 0) > 0)
         #expect(me?.path?.isEmpty == false)
     }
+
+    @Test func liveSnapshotReadsOnlyThisUsersProcesses() {
+        #expect(LibprocProcessSource().snapshot().allSatisfy { $0.uid == getuid() })
+    }
+
+    /// The responsible PID only matters for bundled code; other processes skip the lookup.
+    @Test func responsiblePIDIsOnlyLookedUpForBundledCode() {
+        let unbundled = LibprocProcessSource().snapshot().filter { process in
+            guard let path = process.path else { return true }
+            return !path.contains(".app/") && !path.contains(".xpc/")
+        }
+        #expect(!unbundled.isEmpty)
+        #expect(unbundled.allSatisfy { $0.responsiblePID == nil })
+    }
 }

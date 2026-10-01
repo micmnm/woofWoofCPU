@@ -1,11 +1,18 @@
 import Darwin
 import os
 
-/// Reads every visible process via libproc. Processes owned by root or other users
-/// usually fail `proc_pid_rusage` without privileges and are skipped.
+/// Reads the current user's processes via libproc (spec §4.1: other users' and root's
+/// processes fail `proc_pid_rusage` without privileges, so they are skipped up front).
 public final class LibprocProcessSource: ProcessSource, @unchecked Sendable {
-    private let pathCache = OSAllocatedUnfairLock<[ProcessIdentity: String]>(initialState: [:])
+    private struct Lookup {
+        let path: String
+        let responsiblePID: Int32?
+    }
+
+    /// Path and responsible PID never change for a process identity, so they are read once.
+    private let cache = OSAllocatedUnfairLock<[ProcessIdentity: Lookup]>(initialState: [:])
     private let responsibleFn: (@convention(c) (pid_t) -> pid_t)?
+    private let uid = getuid()
 
     public init() {
         // Undocumented libsystem symbol (what Activity Monitor uses); absent → path-based grouping only.
@@ -17,40 +24,46 @@ public final class LibprocProcessSource: ProcessSource, @unchecked Sendable {
 
     public func snapshot() -> [RawProcess] {
         let pids = Self.allPIDs()
+        let previous = cache.withLock { $0 }
+        var next: [ProcessIdentity: Lookup] = [:]
+        next.reserveCapacity(previous.count)
         var result: [RawProcess] = []
         result.reserveCapacity(pids.count)
-        var seen = Set<ProcessIdentity>()
         for pid in pids where pid > 0 {
-            guard let info = Self.bsdInfo(pid), let usage = Self.rusage(pid) else { continue }
+            guard let info = Self.bsdInfo(pid), info.pbi_uid == uid, let usage = Self.rusage(pid) else { continue }
             let identity = ProcessIdentity(
                 pid: pid,
                 startMicros: UInt64(info.pbi_start_tvsec) * 1_000_000 + UInt64(info.pbi_start_tvusec)
             )
-            seen.insert(identity)
-            let responsible = responsibleFn?(pid)
+            let lookup = previous[identity] ?? lookUp(identity)
+            next[identity] = lookup
             result.append(RawProcess(
                 identity: identity,
                 ppid: Int32(info.pbi_ppid),
                 uid: info.pbi_uid,
                 name: Self.name(from: info),
-                path: path(for: identity),
-                responsiblePID: (responsible ?? -1) > 0 ? responsible : nil,
+                path: lookup?.path,
+                responsiblePID: lookup?.responsiblePID,
                 cpuTimeNanos: MachTime.nanoseconds(usage.ri_user_time &+ usage.ri_system_time),
                 memoryBytes: usage.ri_phys_footprint
             ))
         }
-        let live = seen
-        pathCache.withLock { cache in cache = cache.filter { live.contains($0.key) } }
+        let live = next
+        cache.withLock { $0 = live }
         return result
     }
 
-    private func path(for identity: ProcessIdentity) -> String? {
-        if let cached = pathCache.withLock({ $0[identity] }) { return cached }
+    /// Nil (and retried next tick) when the path can't be read. The responsible PID is only
+    /// needed to group bundled code, so other processes skip that call.
+    private func lookUp(_ identity: ProcessIdentity) -> Lookup? {
         var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
         guard proc_pidpath(identity.pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
         let path = String(decoding: buffer.prefix(while: { $0 != 0 }).map(UInt8.init(bitPattern:)), as: UTF8.self)
-        pathCache.withLock { $0[identity] = path }
-        return path
+        var responsible: Int32?
+        if path.contains(".app/") || path.contains(".xpc/"), let pid = responsibleFn?(identity.pid), pid > 0 {
+            responsible = pid
+        }
+        return Lookup(path: path, responsiblePID: responsible)
     }
 
     private static func allPIDs() -> [pid_t] {

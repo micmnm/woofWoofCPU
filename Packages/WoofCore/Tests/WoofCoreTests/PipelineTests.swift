@@ -17,6 +17,15 @@ import Testing
         history.record([], now: 11)
         #expect(history.series(for: e.key, resource: .cpu, since: 0).isEmpty)
     }
+
+    @Test func storageStaysBoundedAndVanishedEntitiesArePruned() {
+        var history = UsageHistory(retention: 10)
+        let e = entity("yes", cpu: 50)
+        for t in stride(from: 0.0, through: 2000, by: 2) { history.record([e], now: t) }
+        #expect(history.storedPointCount <= 100)
+        for t in stride(from: 2002.0, through: 2200, by: 2) { history.record([], now: t) }
+        #expect(history.storedPointCount == 0)
+    }
 }
 
 @Suite struct WatchPipelineTests {
