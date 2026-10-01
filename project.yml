@@ -1,0 +1,46 @@
+name: WoofWoofCPU
+options:
+  bundleIdPrefix: com.woofwoofcpu
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+packages:
+  WoofCore:
+    path: Packages/WoofCore
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+targets:
+  WoofWoofCPU:
+    type: application
+    platform: macOS
+    sources:
+      - path: WoofWoofCPU
+    dependencies:
+      - package: WoofCore
+    info:
+      path: WoofWoofCPU/Resources/Info.plist
+      properties:
+        LSUIElement: true
+        CFBundleDisplayName: woofWoofCPU
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "14.0"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.woofwoofcpu.app
+        PRODUCT_NAME: woofWoofCPU
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_APP_SANDBOX: NO
+        GENERATE_INFOPLIST_FILE: NO
+schemes:
+  WoofWoofCPU:
+    build:
+      targets:
+        WoofWoofCPU: all
+    run:
+      config: Debug
