@@ -51,7 +51,7 @@ struct GeneralSettings: View {
                 DisclosureGroup("Advanced") {
                     LimitField(title: "CPU above (%)", value: limitBinding(\.cpu.threshold, scale: 1))
                     LimitField(title: "CPU for (minutes)", value: limitBinding(\.cpu.window, scale: 60))
-                    LimitField(title: "Memory above (% of RAM)", value: limitBinding(\.memory.threshold, scale: 0.01))
+                    LimitField(title: "Memory above (GB)", value: limitBinding(\.memory.threshold, scale: Self.fractionPerGB, maxStored: 1))
                     LimitField(title: "Memory for (minutes)", value: limitBinding(\.memory.window, scale: 60))
                 }
             }
@@ -80,13 +80,16 @@ struct GeneralSettings: View {
         .formStyle(.grouped)
     }
 
+    /// Memory is stored as a fraction of RAM; one GB (1 << 30, as ByteCountFormatter's memory style) in that unit.
+    private static let fractionPerGB = Double(1 << 30) / Double(SystemInfo.physicalMemory)
+
     /// Displayed value = stored value / scale. Editing switches the slider to Custom.
-    private func limitBinding(_ keyPath: WritableKeyPath<Limits, Double>, scale: Double) -> Binding<Double> {
+    private func limitBinding(_ keyPath: WritableKeyPath<Limits, Double>, scale: Double, maxStored: Double = .infinity) -> Binding<Double> {
         Binding(
             get: { settings.limits[keyPath: keyPath] / scale },
             set: { newValue in
                 var limits = settings.limits
-                limits[keyPath: keyPath] = max(0, newValue) * scale
+                limits[keyPath: keyPath] = min(maxStored, max(0, newValue) * scale)
                 settings.limitsSetting = .custom(limits)
             }
         )
