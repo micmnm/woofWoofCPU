@@ -70,6 +70,50 @@ import Testing
         #expect(run(&pipeline, cpu: 120, at: 4000).mood == .sniffing)
     }
 
+    @Test func reevaluateRunsOnlyTheMoodEngine() {
+        var pipeline = WatchPipeline()
+        var last: WatchPipeline.Step?
+        for t in stride(from: 0.0, through: 30, by: 2) { last = run(&pipeline, cpu: 120, at: t) }
+        let tracker = pipeline.tracker
+        let points = pipeline.history.storedPointCount
+
+        let step = pipeline.reevaluate(isMuted: { _ in false }, paused: false, now: 31)
+
+        #expect(step.breaches == last?.breaches)
+        #expect(step.mood == .growling)
+        #expect(step.newAlerts.isEmpty)
+        #expect(pipeline.tracker == tracker)
+        #expect(pipeline.history.storedPointCount == points)
+    }
+
+    @Test func repeatedReevaluateNeverCountsAsCalmTicks() {
+        var pipeline = WatchPipeline()
+        let id = run(&pipeline, cpu: 120, at: 0).breaches.first?.id
+        _ = run(&pipeline, cpu: 0, at: 2)
+        _ = run(&pipeline, cpu: 0, at: 4)
+        for _ in 0..<3 { _ = pipeline.reevaluate(isMuted: { _ in false }, paused: false, now: 5) }
+        #expect(run(&pipeline, cpu: 120, at: 6).breaches.first?.id == id)
+    }
+
+    @Test func reevaluateAppliesAMuteWithoutBarking() {
+        var pipeline = WatchPipeline()
+        for t in stride(from: 0.0, through: 60, by: 2) { _ = run(&pipeline, cpu: 120, at: t) }
+        #expect(pipeline.engine.mood == .barking)
+        let muted = pipeline.reevaluate(isMuted: { _ in true }, paused: false, now: 61)
+        #expect(muted.mood == .napping)
+        #expect(muted.newAlerts.isEmpty)
+        #expect(muted.breaches.count == 1)
+    }
+
+    @Test func reevaluateWhilePausedDropsTimers() {
+        var pipeline = WatchPipeline()
+        for t in stride(from: 0.0, through: 50, by: 2) { _ = run(&pipeline, cpu: 120, at: t) }
+        let paused = pipeline.reevaluate(isMuted: { _ in false }, paused: true, now: 51)
+        #expect(paused.mood == .napping)
+        #expect(paused.breaches.isEmpty)
+        #expect(run(&pipeline, cpu: 120, at: 600).breaches.first?.progress == 0)
+    }
+
     @Test func historyIsRecordedEvenWhenPaused() {
         var pipeline = WatchPipeline()
         _ = run(&pipeline, cpu: 120, at: 0, paused: true)

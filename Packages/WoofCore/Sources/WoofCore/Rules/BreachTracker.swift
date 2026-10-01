@@ -21,13 +21,13 @@ public struct Breach: Equatable, Sendable {
 }
 
 /// Tracks, per (entity, resource), how long a value has stayed over its limit.
-public struct BreachTracker: Sendable {
+public struct BreachTracker: Equatable, Sendable {
     /// A breach continues while the value stays above this fraction of the limit.
     public static let hysteresis = 0.9
     /// Consecutive ticks below the hysteresis band that end a breach.
     public static let calmTicksToEnd = 3
 
-    private struct State: Sendable {
+    private struct State: Equatable, Sendable {
         let id: Int
         let since: TimeInterval
         var calmTicks: Int
