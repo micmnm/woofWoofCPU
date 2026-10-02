@@ -13,6 +13,8 @@ protocol Skin: AnyObject {
     func portrait(for mood: DogMood) -> NSImage
     /// Art composed onto the app icon background.
     var iconArt: NSImage { get }
+    /// Hard-edged art that must be scaled without interpolation.
+    var isPixelArt: Bool { get }
     /// Bundled sound resource name (without extension); falls back to a system sound if missing.
     var barkSoundName: String { get }
 }

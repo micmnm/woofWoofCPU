@@ -7,6 +7,7 @@ final class SymbolSkin: Skin {
     let id = "symbol"
     let displayName = "Symbol dog"
     let barkSoundName = "bark-pixel"
+    let isPixelArt = false
 
     private var frameCache: [DogMood: [NSImage]] = [:]
     private var portraitCache: [DogMood: NSImage] = [:]

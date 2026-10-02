@@ -122,6 +122,7 @@ struct DogSettings: View {
     @Bindable var settings: SettingsStore
 
     var body: some View {
+        let selected = SkinRegistry.skin(id: settings.skinID)
         Form {
             Picker("Skin", selection: $settings.skinID) {
                 ForEach(SkinRegistry.all, id: \.id) { skin in
@@ -131,8 +132,8 @@ struct DogSettings: View {
             HStack(spacing: 12) {
                 ForEach(DogMood.allCases, id: \.self) { mood in
                     VStack {
-                        Image(nsImage: SkinRegistry.skin(id: settings.skinID).portrait(for: mood))
-                            .interpolation(.none)
+                        Image(nsImage: selected.portrait(for: mood))
+                            .interpolation(selected.isPixelArt ? .none : .high)
                             .resizable()
                             .scaledToFit()
                             .frame(width: 52, height: 40)

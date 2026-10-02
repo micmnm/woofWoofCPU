@@ -41,7 +41,7 @@ struct PopoverView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Image(nsImage: coordinator.skin.portrait(for: coordinator.mood))
-                .interpolation(.none)
+                .interpolation(coordinator.skin.isPixelArt ? .none : .high)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 64, height: 48)
