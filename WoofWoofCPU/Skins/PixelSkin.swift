@@ -13,7 +13,9 @@ final class PixelSkin: Skin {
 
     func frames(for mood: DogMood) -> [NSImage] {
         if let cached = frameCache[mood] { return cached }
-        let images = PixelArt.frames(for: mood).map { Self.render($0, pixel: 1.5, template: mood != .barking) }
+        let images = PixelArt.frames(for: mood).map {
+            Self.render($0, pixel: 1.5, template: mood != .barking, ink: Self.ink(for: mood))
+        }
         frameCache[mood] = images
         return images
     }
@@ -29,20 +31,25 @@ final class PixelSkin: Skin {
 
     func portrait(for mood: DogMood) -> NSImage {
         if let cached = portraitCache[mood] { return cached }
-        let image = Self.render(PixelArt.frames(for: mood)[0], pixel: 4, template: false)
+        let image = Self.render(PixelArt.frames(for: mood)[0], pixel: 4, template: false, ink: Self.ink(for: mood))
         portraitCache[mood] = image
         return image
     }
 
+    /// Black or white ink on a red tongue reads as growling in the menu bar, so barking is all red.
+    static func ink(for mood: DogMood) -> NSColor {
+        mood == .barking ? .systemRed : .labelColor
+    }
+
     /// Template images ignore color: only alpha matters, so `r`/`p` read as ink there.
-    static func render(_ rows: [String], pixel: CGFloat, template: Bool) -> NSImage {
+    static func render(_ rows: [String], pixel: CGFloat, template: Bool, ink: NSColor) -> NSImage {
         let size = NSSize(width: CGFloat(PixelArt.width) * pixel, height: CGFloat(PixelArt.height) * pixel)
         let image = NSImage(size: size, flipped: true) { _ in
             for (y, row) in rows.enumerated() {
                 for (x, char) in row.enumerated() {
                     let color: NSColor
                     switch char {
-                    case "#": color = template ? .black : .labelColor
+                    case "#": color = template ? .black : ink
                     case "r": color = .systemRed
                     case "p": color = .systemPink
                     default: continue
