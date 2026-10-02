@@ -1,15 +1,17 @@
 import AppKit
 import WoofCore
 
-/// The symbol dog snapped to a 54×36 grid: one cell per Retina pixel in a 27×18-pt slot.
+/// The symbol dog snapped to a 54×36 grid (one cell per Retina pixel in a 27×18-pt slot), plus a 27×18 grid for 1× screens.
 @MainActor
 final class PixelSymbolSkin: Skin {
     let id = "symbolPixel"
     let displayName = "Pixel symbol dog"
     let barkSoundName = "bark-pixel"
+    let isPixelArt = true
 
-    static let gridWidth = 54
-    static let gridHeight = 36
+    /// Grid widths; heights are two thirds of these.
+    static let fineGrid = 54
+    static let coarseGrid = 27
 
     enum Paint: CaseIterable {
         case ink, red, orange, pink
@@ -42,7 +44,7 @@ final class PixelSymbolSkin: Skin {
 
     func frames(for mood: DogMood) -> [NSImage] {
         if let cached = frameCache[mood] { return cached }
-        let images = SymbolDog.poses(for: mood).map { Self.render(Self.cells(for: $0), cell: 0.5, allowTemplate: true) }
+        let images = SymbolDog.poses(for: mood).map(Self.frame)
         frameCache[mood] = images
         return images
     }
@@ -53,18 +55,18 @@ final class PixelSymbolSkin: Skin {
 
     func portrait(for mood: DogMood) -> NSImage {
         if let cached = portraitCache[mood] { return cached }
-        let image = Self.render(Self.cells(for: SymbolDog.poses(for: mood)[0]), cell: 2, allowTemplate: false)
+        let image = Self.portrait(Self.cells(for: SymbolDog.poses(for: mood)[0], grid: Self.fineGrid))
         portraitCache[mood] = image
         return image
     }
 
     var iconArt: NSImage {
-        Self.render(Self.cells(for: SymbolDog.Pose()), cell: 2, allowTemplate: false)
+        Self.portrait(Self.cells(for: SymbolDog.Pose(), grid: Self.fineGrid))
     }
 
     /// Rasterizes the composition (inset 1.5 pt in the 27-pt slot) and keeps cells at least 42% opaque.
-    static func cells(for pose: SymbolDog.Pose) -> Cells {
-        let width = gridWidth, height = gridHeight
+    static func cells(for pose: SymbolDog.Pose, grid width: Int) -> Cells {
+        let height = width * 2 / 3
         let zoom = CGFloat(width) / 27
         guard let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4,
@@ -97,22 +99,45 @@ final class PixelSymbolSkin: Skin {
         return dr * dr + dg * dg + db * db
     }
 
-    /// Template when every cell is ink (and `allowTemplate`); otherwise ink follows `labelColor`.
-    static func render(_ cells: Cells, cell: CGFloat, allowTemplate: Bool) -> NSImage {
-        let template = allowTemplate && cells.allSatisfy { $0 == nil || $0 == .ink }
-        let ink: NSColor = template ? .black : .labelColor
-        let size = NSSize(width: CGFloat(gridWidth) * cell, height: CGFloat(gridHeight) * cell)
-        let image = NSImage(size: size, flipped: true) { _ in
-            for (index, paint) in cells.enumerated() {
-                guard let paint else { continue }
-                paint.color(ink: ink).setFill()
-                let x = CGFloat(index % gridWidth) * cell
-                let y = CGFloat(index / gridWidth) * cell
-                NSRect(x: x, y: y, width: cell, height: cell).fill()
-            }
-            return true
+    /// AppKit picks the rep whose pixel size matches the screen, so each grid lands on whole device pixels.
+    static func frame(_ pose: SymbolDog.Pose) -> NSImage {
+        let coarse = cells(for: pose, grid: coarseGrid)
+        let fine = cells(for: pose, grid: fineGrid)
+        let template = isInkOnly(coarse) && isInkOnly(fine)
+        let image = NSImage(size: NSSize(width: 27, height: 18))
+        for (cells, grid) in [(coarse, coarseGrid), (fine, fineGrid)] {
+            let representation = rep(cells, grid: grid, cell: 27 / CGFloat(grid), template: template)
+            representation.pixelsWide = grid
+            representation.pixelsHigh = grid * 2 / 3
+            image.addRepresentation(representation)
         }
         image.isTemplate = template
         return image
+    }
+
+    /// 2-pt cells from the fine grid; never a template.
+    static func portrait(_ cells: Cells) -> NSImage {
+        let representation = rep(cells, grid: fineGrid, cell: 2, template: false)
+        let image = NSImage(size: representation.size)
+        image.addRepresentation(representation)
+        return image
+    }
+
+    private static func isInkOnly(_ cells: Cells) -> Bool {
+        cells.allSatisfy { $0 == nil || $0 == .ink }
+    }
+
+    /// Drawn on demand so non-template ink follows `labelColor`.
+    private static func rep(_ cells: Cells, grid: Int, cell: CGFloat, template: Bool) -> NSImageRep {
+        let ink: NSColor = template ? .black : .labelColor
+        let rows = grid * 2 / 3
+        return NSCustomImageRep(size: NSSize(width: CGFloat(grid) * cell, height: CGFloat(rows) * cell), flipped: true) { _ in
+            for (index, paint) in cells.enumerated() {
+                guard let paint else { continue }
+                paint.color(ink: ink).setFill()
+                NSRect(x: CGFloat(index % grid) * cell, y: CGFloat(index / grid) * cell, width: cell, height: cell).fill()
+            }
+            return true
+        }
     }
 }
