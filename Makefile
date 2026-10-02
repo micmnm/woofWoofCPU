@@ -6,12 +6,20 @@ ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 DERIVED := $(ROOT)/build/DerivedData
 APP := $(DERIVED)/Build/Products/Debug/woofWoofCPU.app
 RELEASE_APP := $(DERIVED)/Build/Products/Release/woofWoofCPU.app
+MIAW := $(ROOT)/Tools/miawMiawCPU
 
-.PHONY: test project build run install clean
+.PHONY: test project build run install miaw clean
 
-# make test FILTER=MachTimeTests  — run one suite or test
+# make test FILTER=MachTimeTests  — run one suite or test (the filter goes to both packages)
 test:
 	swift test --package-path $(ROOT)/Packages/WoofCore $(if $(FILTER),--filter $(FILTER))
+	swift test --package-path $(MIAW) $(if $(FILTER),--filter $(FILTER))
+
+# The stress toy that gives the dog something to bark at: bin/miawMiawCPU help
+miaw:
+	swift build -c release --package-path $(MIAW)
+	mkdir -p $(ROOT)/bin
+	cp "$$(swift build -c release --package-path $(MIAW) --show-bin-path)/miawMiawCPU" $(ROOT)/bin/miawMiawCPU
 
 project:
 	xcodegen generate --quiet --spec $(ROOT)/project.yml --project $(ROOT)
@@ -32,4 +40,4 @@ install: project
 	ditto $(RELEASE_APP) /Applications/woofWoofCPU.app
 
 clean:
-	rm -rf $(ROOT)/build $(ROOT)/Packages/WoofCore/.build $(ROOT)/WoofWoofCPU.xcodeproj
+	rm -rf $(ROOT)/build $(ROOT)/Packages/WoofCore/.build $(MIAW)/.build $(ROOT)/bin $(ROOT)/WoofWoofCPU.xcodeproj

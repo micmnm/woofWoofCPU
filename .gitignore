@@ -8,6 +8,7 @@ xcuserdata/
 *.xccheckout
 DerivedData/
 build/
+bin/
 *.moved-aside
 *.hmap
 *.ipa
