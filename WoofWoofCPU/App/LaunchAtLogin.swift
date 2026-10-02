@@ -5,6 +5,8 @@ import ServiceManagement
 enum LaunchAtLogin {
     static var isEnabled: Bool { SMAppService.mainApp.status == .enabled }
     static var needsApproval: Bool { SMAppService.mainApp.status == .requiresApproval }
+    /// Registered, possibly still waiting for approval in System Settings.
+    static var isRegistered: Bool { isEnabled || needsApproval }
 
     static func set(_ enabled: Bool) throws {
         if enabled {

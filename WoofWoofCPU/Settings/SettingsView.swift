@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import WoofCore
 
@@ -17,7 +18,8 @@ struct SettingsView: View {
 
 struct GeneralSettings: View {
     @Bindable var settings: SettingsStore
-    @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var launchAtLogin = LaunchAtLogin.isRegistered
+    @State private var needsApproval = LaunchAtLogin.needsApproval
     @State private var launchError: String?
 
     private var sliderValue: Binding<Double> {
@@ -65,15 +67,17 @@ struct GeneralSettings: View {
                 Toggle("Mute bark", isOn: $settings.soundMuted)
                 Toggle("Launch at login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in
+                        // Syncing the toggle from SMAppService lands here too; only a user change acts.
+                        guard enabled != LaunchAtLogin.isRegistered else { return }
                         do {
                             try LaunchAtLogin.set(enabled)
                             launchError = nil
                         } catch {
                             launchError = error.localizedDescription
-                            launchAtLogin = LaunchAtLogin.isEnabled
                         }
+                        syncLaunchAtLogin()
                     }
-                if LaunchAtLogin.needsApproval || launchError != nil {
+                if needsApproval || launchError != nil {
                     HStack {
                         Text(launchError ?? "Needs approval in System Settings").foregroundStyle(.secondary)
                         Button("Open Login Items…") { LaunchAtLogin.openLoginItemsSettings() }
@@ -83,6 +87,16 @@ struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+        // The user may have approved (or removed) the login item in System Settings meanwhile.
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            launchError = nil
+            syncLaunchAtLogin()
+        }
+    }
+
+    private func syncLaunchAtLogin() {
+        launchAtLogin = LaunchAtLogin.isRegistered
+        needsApproval = LaunchAtLogin.needsApproval
     }
 
     /// Memory is stored as a fraction of RAM; one GB (1 << 30, as ByteCountFormatter's memory style) in that unit.
