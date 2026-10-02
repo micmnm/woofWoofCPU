@@ -34,6 +34,21 @@ import Testing
         #expect(job.cores == 12)
     }
 
+    @Test func coresAllowUpToFourTimesTheActiveCount() throws {
+        guard case .cpu(let job) = try parse("cpu --cores 32", activeCores: 8) else {
+            Issue.record("expected cpu")
+            return
+        }
+        #expect(job.cores == 32)
+        do {
+            _ = try parse("cpu --cores 33", activeCores: 8)
+            Issue.record("expected --cores 33 to be rejected on 8 cores")
+        } catch {
+            #expect(error.message.contains("--cores"))
+            #expect(error.message.contains("32"))
+        }
+    }
+
     @Test func everyWithoutTimesRepeatsForever() throws {
         guard case .cpu(let job) = try parse("cpu --for 1m --every 5m") else {
             Issue.record("expected cpu")
@@ -112,6 +127,7 @@ import Testing
         "demo", "demo meow", "demo bark extra", "demo bark --cores 4",
         "cpu --for 9223372036854775807", "cpu --in 169h", "mem --gb 1 --for 2m --every 169h",
         "cpu --pattern help", "mem --gb help", "cpu help", "demo help",
+        "cpu --cores 1000000", "cpu --cores 9223372036854775807",
     ])
     func rejectsBadArguments(line: String) {
         #expect(failure(line) != nil)

@@ -14,7 +14,7 @@ public enum ArgumentParser {
     static let memFlags = scheduleFlags.union(["--gb"])
     static let maxGigabytes = 1024.0
 
-    /// `activeCores` resolves `--cores all`.
+    /// `activeCores` resolves `--cores all` and bounds `--cores N`.
     public static func parse(_ arguments: [String], activeCores: Int) throws(UsageError) -> Command {
         // A bare `help` only counts as the command, so `--pattern help` stays a bad value.
         guard let command = arguments.first, !helpWords.contains(command),
@@ -48,7 +48,11 @@ public enum ArgumentParser {
             if text == "all" {
                 cores = activeCores
             } else {
-                guard let value = Int(text), value >= 1 else { throw UsageError("--cores must be a number ≥ 1 or 'all', not '\(text)'") }
+                // One thread per core: a typo like 1000 would spawn a thousand spinning threads.
+                let maxCores = 4 * max(activeCores, 1)
+                guard let value = Int(text), (1...maxCores).contains(value) else {
+                    throw UsageError("--cores must be a number from 1 to \(maxCores) (4 × this Mac's cores) or 'all', not '\(text)'")
+                }
                 cores = value
             }
         }
