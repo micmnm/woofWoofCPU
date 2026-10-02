@@ -32,6 +32,8 @@ public enum SnoozeDuration: String, CaseIterable, Sendable {
 public final class SettingsStore {
     public static let defaultRowsShown = 5
     public static let rowsShownRange = 3...10
+    public static let defaultPollInterval: TimeInterval = 5
+    public static let pollIntervalChoices: [TimeInterval] = [2, 5, 10, 30]
 
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -39,6 +41,7 @@ public final class SettingsStore {
     public var rowsShown: Int { didSet { defaults.set(rowsShown, forKey: Keys.rows) } }
     public var skinID: String { didSet { defaults.set(skinID, forKey: Keys.skin) } }
     public var soundMuted: Bool { didSet { defaults.set(soundMuted, forKey: Keys.muted) } }
+    public var pollInterval: TimeInterval { didSet { defaults.set(pollInterval, forKey: Keys.pollInterval) } }
     public private(set) var ignoreList: Set<EntityKey> { didSet { save(ignoreList, Keys.ignore) } }
     public private(set) var snoozes: [EntityKey: Date] { didSet { save(snoozes, Keys.snoozes) } }
     public var pausedUntil: Date? { didSet { save(pausedUntil, Keys.paused) } }
@@ -50,6 +53,7 @@ public final class SettingsStore {
         rowsShown = min(max(rows, Self.rowsShownRange.lowerBound), Self.rowsShownRange.upperBound)
         skinID = defaults.string(forKey: Keys.skin) ?? "pixel"
         soundMuted = defaults.bool(forKey: Keys.muted)
+        pollInterval = Self.nearestPollInterval(defaults.object(forKey: Keys.pollInterval) as? Double)
         ignoreList = Self.load(Set<EntityKey>.self, Keys.ignore, defaults) ?? []
         snoozes = (Self.load([EntityKey: Date].self, Keys.snoozes, defaults) ?? [:]).filter { $0.value > now }
         pausedUntil = Self.load(Date?.self, Keys.paused, defaults) ?? nil
@@ -90,11 +94,18 @@ public final class SettingsStore {
         if let pausedUntil, pausedUntil <= now { self.pausedUntil = nil }
     }
 
+    /// Missing or non-positive values get the default; anything else snaps to the nearest choice.
+    private static func nearestPollInterval(_ stored: Double?) -> TimeInterval {
+        guard let stored, stored > 0 else { return defaultPollInterval }
+        return pollIntervalChoices.min { abs($0 - stored) < abs($1 - stored) } ?? defaultPollInterval
+    }
+
     private enum Keys {
         static let limits = "limitsSetting"
         static let rows = "rowsShown"
         static let skin = "skinID"
         static let muted = "soundMuted"
+        static let pollInterval = "pollInterval"
         static let ignore = "ignoreList"
         static let snoozes = "snoozes"
         static let paused = "pausedUntil"

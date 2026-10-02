@@ -257,6 +257,7 @@ Stored in `UserDefaults`, with Codable JSON for structured values:
 - skin id
 - mute flag
 - launch at login (mirrored from `SMAppService` status, not stored independently)
+- poll interval (2 / 5 / 10 / 30 s; other stored values snap to the nearest choice)
 - ignore list: `[EntityKey]`
 - snoozes: `[EntityKey: Date]` — expired entries are pruned on load
 - pause-until date

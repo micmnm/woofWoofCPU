@@ -52,6 +52,32 @@ import Testing
         #expect(SettingsStore(defaults: defaults, now: now).rowsShown == 10)
     }
 
+    @Test func pollIntervalDefaultsToFiveSeconds() {
+        let store = SettingsStore(defaults: defaults, now: now)
+        #expect(store.pollInterval == 5)
+        #expect(SettingsStore.pollIntervalChoices == [2, 5, 10, 30])
+    }
+
+    @Test func pollIntervalPersistsAcrossInstances() {
+        let store = SettingsStore(defaults: defaults, now: now)
+        store.pollInterval = 30
+        #expect(defaults.double(forKey: "pollInterval") == 30)
+        #expect(SettingsStore(defaults: defaults, now: now).pollInterval == 30)
+    }
+
+    @Test func invalidPollIntervalFallsBackOnLoad() {
+        defaults.set(7, forKey: "pollInterval")
+        #expect(SettingsStore(defaults: defaults, now: now).pollInterval == 5)
+        defaults.set(25, forKey: "pollInterval")
+        #expect(SettingsStore(defaults: defaults, now: now).pollInterval == 30)
+        defaults.set(0, forKey: "pollInterval")
+        #expect(SettingsStore(defaults: defaults, now: now).pollInterval == 5)
+        defaults.set(-3, forKey: "pollInterval")
+        #expect(SettingsStore(defaults: defaults, now: now).pollInterval == 5)
+        defaults.set("fast", forKey: "pollInterval")
+        #expect(SettingsStore(defaults: defaults, now: now).pollInterval == 5)
+    }
+
     @Test func ignoredOrSnoozedEntitiesAreMuted() {
         let store = SettingsStore(defaults: defaults, now: now)
         #expect(!store.isMuted(key, now: now))
