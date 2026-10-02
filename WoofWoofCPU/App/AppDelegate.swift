@@ -50,17 +50,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         status.onLeftClick = { [weak self] in
             guard let self else { return }
-            if !self.popover.isShown { self.coordinator.popoverMode = .list }
+            if !self.popover.isShown {
+                self.coordinator.popoverMode = self.coordinator.alertingKeys.isEmpty ? .list : .alert
+            }
             self.popover.toggle()
         }
         status.menuProvider = { [weak self] in self?.makeMenu() ?? NSMenu() }
         popover.onUserDismiss = { [weak self] in self?.coordinator.popoverDismissedByUser() }
         coordinator.onMoodChange = { [weak self] _ in self?.refreshDog() }
         coordinator.onTick = { [weak self] in self?.refreshDog() }
+        // The bark doesn't open the popover; a click on the barking dog opens it in alert mode.
         coordinator.onAlert = { [weak self] in
-            guard let self else { return }
-            self.popover.show()
-            if !self.coordinator.settings.soundMuted { self.bark.play(self.coordinator.skin.barkSoundName) }
+            guard let self, !self.coordinator.settings.soundMuted else { return }
+            self.bark.play(self.coordinator.skin.barkSoundName)
         }
 
         coordinator.start()

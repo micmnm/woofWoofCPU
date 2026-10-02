@@ -83,14 +83,12 @@ final class PopoverController {
         panel.onCancel = { [weak self] in self?.dismissByUser() }
     }
 
-    /// The user's dog click: the panel takes key so Esc works straight away.
     func toggle() {
-        isShown ? dismissByUser() : show(activate: true)
+        isShown ? dismissByUser() : show()
     }
 
-    /// `activate: false` (alert opens) only orders the panel front, so typing elsewhere is not captured;
-    /// the first click into it makes it key. Does nothing when no screen is attached.
-    func show(activate: Bool = false) {
+    /// The panel takes key so Esc works straight away. Does nothing when no screen is attached.
+    func show() {
         guard let screen = targetScreen() else { return }
         let available = availableHeight(on: screen)
         session.maxListHeight = min(520, max(120, available - Self.chromeHeight))
@@ -100,7 +98,7 @@ final class PopoverController {
         panel.orderFrontRegardless()
         // That first setFrame lays the content out and reports its real size while still hidden.
         if let contentSize, contentSize.height != panel.frame.height { place(size: contentSize, on: screen) }
-        if activate { panel.makeKey() }
+        panel.makeKey()
         optionKey.start()
         if clickMonitor == nil {
             clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in

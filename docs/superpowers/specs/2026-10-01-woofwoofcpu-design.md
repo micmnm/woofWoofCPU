@@ -4,7 +4,7 @@ Date: 2026-10-01 · Status: approved; revised after prototyping (grouping rules,
 
 ## 1. What it is
 
-A macOS menu bar app with a dog in it. The dog watches running apps and processes. When one of them uses too much **CPU** or **memory** for too long, the dog barks, a speech-bubble popover drops from the menu bar and you decide what to do: **Quit** it (hold ⌥ to **Kill**), **Snooze**, **Ignore**, or **Always ignore**.
+A macOS menu bar app with a dog in it. The dog watches running apps and processes. When one of them uses too much **CPU** or **memory** for too long, the dog barks and turns red; click it and a speech-bubble popover drops from the menu bar so you can decide what to do: **Quit** it (hold ⌥ to **Kill**), **Snooze**, **Ignore**, or **Always ignore**.
 
 Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors (Stats, iStat Menus) only alert on system totals; App Tamer and GitHub watchdogs detect sustained per-app hogs but have no personality; RunCat has personality but no detection or actions. woofWoofCPU combines all three.
 
@@ -174,7 +174,7 @@ The menu bar dog's mood is driven by the most severe unmuted breach across all e
 | **Sulking** | the alerting popover was dismissed (Esc / click outside) and that breach continues |
 | **Proud** | a bark or sulk resolved: you quit/killed it, or the breach ended. Shown for 10 s, then re-evaluated. Snooze or Ignore re-evaluate immediately without Proud. |
 
-**Alert lifecycle:** when an entity first reaches progress 1, `MoodEngine` emits a single `alert(entity, resource)` event. The coordinator plays the bark sound and opens the popover in alert mode.
+**Alert lifecycle:** when an entity first reaches progress 1, `MoodEngine` emits a single `alert(entity, resource)` event. The coordinator plays the bark sound (unless muted) and the menu bar dog switches to red Barking; the popover does not open by itself. Clicking the barking dog opens it in alert mode. Until the user acts, the dog keeps barking while the breach lasts.
 
 - An entity barks at most **once per breach**. Ignore marks the current breach muted; a new breach (after it ended) can bark again.
 - If several entities reach 1, one bark is played and all of them appear at the top of the popover.
@@ -202,7 +202,7 @@ The menu bar dog's mood is driven by the most severe unmuted breach across all e
 - AppKit `NSStatusItem` with an image-only button. SwiftUI `MenuBarExtra` was rejected: it can't animate the icon or open the popover programmatically.
 - `DogAnimator` cycles the current skin's frames for the current mood on a timer. Each mood has its own frame duration, e.g. Barking animates faster.
 - Template images (Pixel skin) adapt to light and dark menu bars. Barking tints red; a red-tinted frame is a non-template image.
-- Left-click toggles the popover in list mode. Right-click opens a small menu: Pause watching ▸, Mute, Settings…, Quit woofWoofCPU.
+- Left-click toggles the popover: in alert mode while some entity is barking, otherwise in list mode. Right-click opens a small menu: Pause watching ▸, Mute, Settings…, Quit woofWoofCPU.
 
 ### 5.2 Popover — `PopoverPanel` + `PopoverView`
 
@@ -219,7 +219,8 @@ The menu bar dog's mood is driven by the most severe unmuted breach across all e
 - **Hover freeze:** while the pointer is over the list, row order doesn't change, so a click always lands on the intended row (borrowed from CleanMyMac).
 - ⌥ is tracked by polling `NSEvent.modifierFlags` every 0.1 s while the popover is open. A global `flagsChanged` monitor would need Accessibility permission, because the non-activating panel leaves the app inactive. While ⌥ is held, every Quit button reads **Kill** and turns red.
 - **Footer:** Pause ▸ · Mute toggle · Settings.
-- **Dismissal:** Esc or clicking outside. Dismissing an alert-mode popover while the breach continues sets the mood to Sulking.
+- **Opening:** only by clicking the dog. A bark plays the sound and turns the dog red; the click then opens the popover in alert mode (barking entities first, alert header).
+- **Dismissal:** Esc, clicking outside, or clicking the dog. Dismissing an alert-mode popover while the breach continues sets the mood to Sulking.
 
 ### 5.3 Settings window
 
@@ -256,8 +257,8 @@ Stored in `UserDefaults`, with Codable JSON for structured values:
 - rows shown (N)
 - skin id
 - mute flag
-- launch at login (mirrored from `SMAppService` status, not stored independently)
 - poll interval (2 / 5 / 10 / 30 s; other stored values snap to the nearest choice)
+- launch at login (mirrored from `SMAppService` status, not stored independently)
 - ignore list: `[EntityKey]`
 - snoozes: `[EntityKey: Date]` — expired entries are pruned on load
 - pause-until date
