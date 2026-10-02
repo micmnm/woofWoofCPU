@@ -51,7 +51,7 @@ public final class SettingsStore {
         limitsSetting = Self.load(LimitsSetting.self, Keys.limits, defaults) ?? .preset(.balanced)
         let rows = defaults.object(forKey: Keys.rows) as? Int ?? Self.defaultRowsShown
         rowsShown = min(max(rows, Self.rowsShownRange.lowerBound), Self.rowsShownRange.upperBound)
-        skinID = defaults.string(forKey: Keys.skin) ?? "pixel"
+        skinID = defaults.string(forKey: Keys.skin) ?? "symbol"
         soundMuted = defaults.bool(forKey: Keys.muted)
         pollInterval = Self.nearestPollInterval(defaults.object(forKey: Keys.pollInterval) as? Double)
         ignoreList = Self.load(Set<EntityKey>.self, Keys.ignore, defaults) ?? []

@@ -24,7 +24,7 @@ import Testing
         let store = SettingsStore(defaults: defaults, now: now)
         #expect(store.limitsSetting == .preset(.balanced))
         #expect(store.rowsShown == 5)
-        #expect(store.skinID == "pixel")
+        #expect(store.skinID == "symbol")
         #expect(store.soundMuted == false)
         #expect(store.ignoreList.isEmpty)
     }
