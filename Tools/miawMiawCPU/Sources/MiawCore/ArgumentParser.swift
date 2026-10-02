@@ -7,7 +7,8 @@ public struct UsageError: Error, Equatable, Sendable {
 }
 
 public enum ArgumentParser {
-    static let helpWords: Set = ["help", "--help", "-h"]
+    static let helpFlags: Set = ["--help", "-h"]
+    static let helpWords = helpFlags.union(["help"])
     static let scheduleFlags: Set = ["--for", "--in", "--every", "--times"]
     static let cpuFlags = scheduleFlags.union(["--cores", "--load", "--pattern", "--ramp-from", "--spike-on", "--spike-off"])
     static let memFlags = scheduleFlags.union(["--gb"])
@@ -15,7 +16,9 @@ public enum ArgumentParser {
 
     /// `activeCores` resolves `--cores all`.
     public static func parse(_ arguments: [String], activeCores: Int) throws(UsageError) -> Command {
-        guard let command = arguments.first, !arguments.contains(where: helpWords.contains) else { return .help }
+        // A bare `help` only counts as the command, so `--pattern help` stays a bad value.
+        guard let command = arguments.first, !helpWords.contains(command),
+              !arguments.contains(where: helpFlags.contains) else { return .help }
         let rest = Array(arguments.dropFirst())
         switch command {
         case "cpu": return .cpu(try cpu(flags(rest, allowed: cpuFlags), activeCores: activeCores))

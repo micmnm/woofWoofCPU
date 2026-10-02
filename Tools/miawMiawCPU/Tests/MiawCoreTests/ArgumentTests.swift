@@ -81,7 +81,7 @@ import Testing
         #expect(MemJob(gigabytes: 6, schedule: Schedule(delay: 0, duration: 1)).byteCount == 6 << 30)
     }
 
-    @Test(arguments: ["help", "--help", "-h", "", "cpu --help", "mem -h"])
+    @Test(arguments: ["help", "--help", "-h", "", "cpu --help", "mem -h", "help cpu", "cpu --for 1m --help", "demo -h"])
     func helpForms(line: String) throws {
         #expect(try parse(line) == .help)
     }
@@ -111,6 +111,7 @@ import Testing
         "mem --gb 1 --pattern ramp", "mem --gb 1 --cores 2", "mem --gb 1 --load 50",
         "demo", "demo meow", "demo bark extra", "demo bark --cores 4",
         "cpu --for 9223372036854775807", "cpu --in 169h", "mem --gb 1 --for 2m --every 169h",
+        "cpu --pattern help", "mem --gb help", "cpu help", "demo help",
     ])
     func rejectsBadArguments(line: String) {
         #expect(failure(line) != nil)
@@ -125,6 +126,7 @@ import Testing
         #expect(failure("cpu --load 150")?.contains("--load") == true)
         #expect(failure("cpu --for soon")?.contains("soon") == true)
         #expect(failure("cpu --for 9223372036854775807")?.contains("7 days") == true)
+        #expect(failure("cpu --pattern help")?.contains("--pattern") == true)
     }
 
     @Test func usageListsEveryCommand() {
