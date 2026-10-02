@@ -1,7 +1,7 @@
 import AppKit
 import WoofCore
 
-/// Default skin: monochrome template sprites, red only while barking.
+/// Monochrome template sprites, red only while barking.
 @MainActor
 final class PixelSkin: Skin {
     let id = "pixel"

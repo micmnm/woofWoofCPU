@@ -11,13 +11,19 @@ protocol Skin: AnyObject {
     func frameDuration(for mood: DogMood) -> TimeInterval
     /// Large art for the popover header and the Settings preview.
     func portrait(for mood: DogMood) -> NSImage
+    /// Art composed onto the app icon background.
+    var iconArt: NSImage { get }
     /// Bundled sound resource name (without extension); falls back to a system sound if missing.
     var barkSoundName: String { get }
 }
 
+extension Skin {
+    var iconArt: NSImage { portrait(for: .napping) }
+}
+
 @MainActor
 enum SkinRegistry {
-    static let all: [any Skin] = [PixelSkin(), ShibaSkin()]
+    static let all: [any Skin] = [SymbolSkin(), PixelSymbolSkin(), PixelSkin(), ShibaSkin()]
 
     static func skin(id: String) -> any Skin {
         all.first { $0.id == id } ?? all[0]
