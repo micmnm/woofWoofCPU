@@ -45,11 +45,26 @@ private struct PopoverRoot<Content: View>: View {
     let onSize: @MainActor (CGSize) -> Void
 
     var body: some View {
-        content
-            .environment(\.popoverMaxListHeight, session.maxListHeight)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .fixedSize()
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
+        TopPinned {
+            content
+                .environment(\.popoverMaxListHeight, session.maxListHeight)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .fixedSize()
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
+        }
+    }
+}
+
+/// The hosting view centres a root taller than the panel, clipping the header; this reports at
+/// most the offered height and hangs the content from the top, so only the bottom clips.
+private struct TopPinned: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let size = subviews.first?.sizeThatFits(.unspecified) ?? .zero
+        return CGSize(width: size.width, height: min(size.height, proposal.height ?? size.height))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, anchor: .topLeading, proposal: .unspecified)
     }
 }
 
