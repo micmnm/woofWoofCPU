@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import WoofCore
 
 @main
@@ -70,7 +71,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.scheduleReminders()
         }
 
+        observeSkin()
         coordinator.start()
+    }
+
+    /// Ticks stop while paused, so a skin change reaches the dog and app icon on its own.
+    /// onChange fires before the new value lands (willSet), hence the hop before refreshing.
+    private func observeSkin() {
+        withObservationTracking {
+            _ = coordinator.settings.skinID
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.refreshDog()
+                self?.observeSkin()
+            }
+        }
     }
 
     private func playBark() {
