@@ -29,3 +29,7 @@ Or build your own: start in 30 s, ramp 4 cores from 20% to 90% for 3 min, three 
     bin/miawMiawCPU cpu --in 30s --cores 4 --load 90 --pattern ramp --for 3m --every 10m --times 3
 
 `bin/miawMiawCPU help` lists everything, including `mem --gb G` for memory. `scripts/hog.sh` still works for quick checks.
+
+## Credits
+
+The bark is "[Barking of a dog](https://commons.wikimedia.org/wiki/File:Barking_of_a_dog.ogg)" by Amada44, Wikimedia Commons, licensed [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). It was trimmed, loudness-normalized and (for the Shiba) pitched up; the derived sounds in `WoofWoofCPU/Resources/Sounds` are likewise CC BY-SA 3.0.

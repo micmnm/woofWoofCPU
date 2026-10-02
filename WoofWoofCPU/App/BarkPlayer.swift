@@ -6,10 +6,13 @@ final class BarkPlayer {
     private let log = Logger(subsystem: "com.woofwoofcpu", category: "sound")
     private var current: NSSound?
 
-    /// Plays `<name>.caf` from the app bundle, or the system "Funk" sound until a real bark is bundled.
+    /// Plays `<name>.caf` from the app bundle, falling back to the system "Funk" sound.
     func play(_ name: String) {
-        let sound = Bundle.main.url(forResource: name, withExtension: "caf").flatMap { NSSound(contentsOf: $0, byReference: true) }
-            ?? NSSound(named: "Funk")
+        var sound = Bundle.main.url(forResource: name, withExtension: "caf").flatMap { NSSound(contentsOf: $0, byReference: true) }
+        if sound == nil {
+            log.debug("bark sound \(name, privacy: .public).caf not bundled; using Funk")
+            sound = NSSound(named: "Funk")
+        }
         guard let sound else {
             log.error("no bark sound available")
             return

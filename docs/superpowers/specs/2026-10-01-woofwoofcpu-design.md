@@ -271,7 +271,7 @@ Stored in `UserDefaults`, with Codable JSON for structured values:
 | `EPERM` / `ESRCH` when signalling | Row shows "Not allowed" / "Already gone"; no crash, no modal. |
 | `responsibility_get_pid_responsible_for_pid` missing in a future macOS | `dlsym` returns nil → falls back to path and parent-chain grouping. |
 | Launch-at-login registration fails or needs approval | Settings shows the status from `SMAppService` and a button to open Login Items settings. |
-| Sound file missing | Silent bark; logged. |
+| Sound file missing | Falls back to the system "Funk" sound; logged. |
 | Clock jumps or sleep/wake | All breach timers reset. |
 
 Logging uses `os.Logger` with subsystem `com.woofwoofcpu`. There is no telemetry.
