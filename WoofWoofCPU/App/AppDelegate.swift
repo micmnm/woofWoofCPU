@@ -123,9 +123,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if paused {
             menu.addItem(ClosureMenuItem("Resume watching") { [weak self] in self?.coordinator.resume() })
         } else {
-            menu.addItem(ClosureMenuItem("Pause for 30 minutes") { [weak self] in self?.coordinator.pause(for: 30 * 60) })
-            menu.addItem(ClosureMenuItem("Pause for 1 hour") { [weak self] in self?.coordinator.pause(for: 60 * 60) })
-            menu.addItem(ClosureMenuItem("Pause until I resume") { [weak self] in self?.coordinator.pause(for: nil) })
+            let pause = NSMenu()
+            pause.addItem(ClosureMenuItem("For 30 minutes") { [weak self] in self?.coordinator.pause(for: 30 * 60) })
+            pause.addItem(ClosureMenuItem("For 1 hour") { [weak self] in self?.coordinator.pause(for: 60 * 60) })
+            pause.addItem(ClosureMenuItem("Until I resume") { [weak self] in self?.coordinator.pause(for: nil) })
+            let item = NSMenuItem(title: "Pause watching", action: nil, keyEquivalent: "")
+            item.submenu = pause
+            menu.addItem(item)
         }
         menu.addItem(.separator())
         let mute = ClosureMenuItem("Mute bark") { [weak self] in self?.coordinator.settings.soundMuted.toggle() }
