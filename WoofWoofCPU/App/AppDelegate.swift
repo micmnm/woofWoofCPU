@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var popover: PopoverController!
     private var settingsWindow: SettingsWindowController!
     private let bark = BarkPlayer()
+    private var reminderTask: Task<Void, Never>?
     private let optionKey = OptionKeyMonitor()
     private let iconUpdater = AppIconUpdater()
 
@@ -57,15 +58,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         status.menuProvider = { [weak self] in self?.makeMenu() ?? NSMenu() }
         popover.onUserDismiss = { [weak self] in self?.coordinator.popoverDismissedByUser() }
-        coordinator.onMoodChange = { [weak self] _ in self?.refreshDog() }
+        coordinator.onMoodChange = { [weak self] mood in
+            if mood != .barking { self?.cancelReminders() }
+            self?.refreshDog()
+        }
         coordinator.onTick = { [weak self] in self?.refreshDog() }
         // The bark doesn't open the popover; a click on the barking dog opens it in alert mode.
         coordinator.onAlert = { [weak self] in
-            guard let self, !self.coordinator.settings.soundMuted else { return }
-            self.bark.play(self.coordinator.skin.barkSoundName)
+            guard let self else { return }
+            self.playBark()
+            self.scheduleReminders()
         }
 
         coordinator.start()
+    }
+
+    private func playBark() {
+        guard !coordinator.settings.soundMuted else { return }
+        bark.play(coordinator.skin.barkSoundName)
+    }
+
+    /// Re-barks at +10/+30/+90 s after the first bark while the dog is still in the red state.
+    private func scheduleReminders() {
+        reminderTask?.cancel()
+        reminderTask = Task { [weak self] in
+            var elapsed = 0
+            for offset in [10, 30, 90] {
+                try? await Task.sleep(for: .seconds(offset - elapsed))
+                elapsed = offset
+                guard !Task.isCancelled, let self, self.coordinator.mood == .barking else { return }
+                self.playBark()
+            }
+        }
+    }
+
+    private func cancelReminders() {
+        reminderTask?.cancel()
+        reminderTask = nil
     }
 
     private func refreshDog() {

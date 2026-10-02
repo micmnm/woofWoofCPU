@@ -174,6 +174,8 @@ The menu bar dog's mood is driven by the most severe unmuted breach across all e
 | **Sulking** | the alerting popover was dismissed (Esc / click outside) and that breach continues |
 | **Proud** | a bark or sulk resolved: you quit/killed it, or the breach ended. Shown for 10 s, then re-evaluated. Snooze or Ignore re-evaluate immediately without Proud. |
 
+While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the first bark (unless muted); leaving Barking cancels the remaining reminders.
+
 **Alert lifecycle:** when an entity first reaches progress 1, `MoodEngine` emits a single `alert(entity, resource)` event. The coordinator plays the bark sound (unless muted) and the menu bar dog switches to red Barking; the popover does not open by itself. Clicking the barking dog opens it in alert mode. Until the user acts, the dog keeps barking while the breach lasts.
 
 - An entity barks at most **once per breach**. Ignore marks the current breach muted; a new breach (after it ended) can bark again.
