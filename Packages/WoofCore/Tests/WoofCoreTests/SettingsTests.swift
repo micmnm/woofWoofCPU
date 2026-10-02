@@ -52,6 +52,26 @@ import Testing
         #expect(SettingsStore(defaults: defaults, now: now).rowsShown == 10)
     }
 
+    @Test func rowsShownIsClampedOnSet() {
+        let store = SettingsStore(defaults: defaults, now: now)
+        store.rowsShown = 2
+        #expect(store.rowsShown == 3)
+        #expect(defaults.integer(forKey: "rowsShown") == 3)
+        store.rowsShown = 99
+        #expect(store.rowsShown == 10)
+        #expect(defaults.integer(forKey: "rowsShown") == 10)
+        #expect(SettingsStore(defaults: defaults, now: now).rowsShown == 10)
+    }
+
+    @Test func pausedUntilPersistsAcrossInstances() {
+        let store = SettingsStore(defaults: defaults, now: now)
+        let until = now.addingTimeInterval(3600)
+        store.pausedUntil = until
+        #expect(SettingsStore(defaults: defaults, now: now).pausedUntil == until)
+        store.pausedUntil = nil
+        #expect(SettingsStore(defaults: defaults, now: now).pausedUntil == nil)
+    }
+
     @Test func pollIntervalDefaultsToFiveSeconds() {
         let store = SettingsStore(defaults: defaults, now: now)
         #expect(store.pollInterval == 5)

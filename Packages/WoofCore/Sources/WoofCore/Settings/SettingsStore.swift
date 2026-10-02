@@ -38,7 +38,13 @@ public final class SettingsStore {
     @ObservationIgnored private let defaults: UserDefaults
 
     public var limitsSetting: LimitsSetting { didSet { save(limitsSetting, Keys.limits) } }
-    public var rowsShown: Int { didSet { defaults.set(rowsShown, forKey: Keys.rows) } }
+    public var rowsShown: Int {
+        didSet {
+            // Re-assigning re-enters this didSet once, with an in-range value.
+            guard Self.rowsShownRange.contains(rowsShown) else { rowsShown = Self.clampedRows(rowsShown); return }
+            defaults.set(rowsShown, forKey: Keys.rows)
+        }
+    }
     public var skinID: String { didSet { defaults.set(skinID, forKey: Keys.skin) } }
     public var soundMuted: Bool { didSet { defaults.set(soundMuted, forKey: Keys.muted) } }
     public var pollInterval: TimeInterval { didSet { defaults.set(pollInterval, forKey: Keys.pollInterval) } }
@@ -50,7 +56,7 @@ public final class SettingsStore {
         self.defaults = defaults
         limitsSetting = Self.load(LimitsSetting.self, Keys.limits, defaults) ?? .preset(.balanced)
         let rows = defaults.object(forKey: Keys.rows) as? Int ?? Self.defaultRowsShown
-        rowsShown = min(max(rows, Self.rowsShownRange.lowerBound), Self.rowsShownRange.upperBound)
+        rowsShown = Self.clampedRows(rows)
         skinID = defaults.string(forKey: Keys.skin) ?? "symbol"
         soundMuted = defaults.bool(forKey: Keys.muted)
         pollInterval = Self.nearestPollInterval(defaults.object(forKey: Keys.pollInterval) as? Double)
@@ -92,6 +98,10 @@ public final class SettingsStore {
         let live = snoozes.filter { $0.value > now }
         if live.count != snoozes.count { snoozes = live }
         if let pausedUntil, pausedUntil <= now { self.pausedUntil = nil }
+    }
+
+    private static func clampedRows(_ rows: Int) -> Int {
+        min(max(rows, rowsShownRange.lowerBound), rowsShownRange.upperBound)
     }
 
     /// Missing or non-positive values get the default; anything else snaps to the nearest choice.
