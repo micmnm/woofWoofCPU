@@ -30,8 +30,6 @@ enum SortResource: String, CaseIterable {
 @MainActor
 @Observable
 final class AppCoordinator {
-    static let tickInterval: TimeInterval = 2
-    static let calmBatteryTickInterval: TimeInterval = 5
     static let politeQuitGrace: Duration = .seconds(5)
 
     let settings: SettingsStore
@@ -86,8 +84,7 @@ final class AppCoordinator {
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.tick()
-                let calm = self.mood == .napping && SystemInfo.isOnBattery
-                let interval = calm ? Self.calmBatteryTickInterval : Self.tickInterval
+                let interval = self.settings.pollInterval
                 try? await Task.sleep(for: .seconds(interval), tolerance: .seconds(interval / 10))
             }
         }

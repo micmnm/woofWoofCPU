@@ -116,7 +116,7 @@ All `WoofCore` units are pure or depend on injected protocols (`Clock`, `Process
 
 ### 4.2 Tick scheduling and self-cost
 
-- Default tick every **2 s**. Drops to **5 s** when the dog is napping and the Mac is on battery.
+- Tick interval is user-configurable (Settings → General → Check every: 2 / 5 / 10 / 30 s), default **5 s**. A change applies from the next tick. Breach timing is wall-clock, so the interval only changes detection granularity.
 - Ticks run on a background task; results are published to the main actor.
 - Ticks are suspended while the system sleeps. On `NSWorkspace.didWakeNotification` all breach timers reset, so time asleep never counts toward a bark.
 - Budget: < 1% of one core on average while calm, verified with Activity Monitor during manual testing (success criterion 4).
@@ -225,7 +225,7 @@ The menu bar dog's mood is driven by the most severe unmuted breach across all e
 
 A regular window hosting SwiftUI, with three tabs:
 
-- **General:** sensitivity slider with an Advanced disclosure, rows shown (N), launch at login (`SMAppService.mainApp`), mute bark.
+- **General:** sensitivity slider with an Advanced disclosure, check interval, rows shown (N), launch at login (`SMAppService.mainApp`), mute bark.
 - **Dog:** skin picker with a live preview of all six moods.
 - **Ignore list:** a table of always-ignored apps and processes with remove buttons, and the current snoozes with their expiry and a cancel button.
 

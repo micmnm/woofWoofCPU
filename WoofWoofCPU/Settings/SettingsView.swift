@@ -56,6 +56,11 @@ struct GeneralSettings: View {
                 }
             }
             Section {
+                Picker("Check every", selection: $settings.pollInterval) {
+                    ForEach(SettingsStore.pollIntervalChoices, id: \.self) { seconds in
+                        Text("\(Int(seconds)) s").tag(seconds)
+                    }
+                }
                 Stepper("Rows shown in popover: \(settings.rowsShown)", value: $settings.rowsShown, in: SettingsStore.rowsShownRange)
                 Toggle("Mute bark", isOn: $settings.soundMuted)
                 Toggle("Launch at login", isOn: $launchAtLogin)
