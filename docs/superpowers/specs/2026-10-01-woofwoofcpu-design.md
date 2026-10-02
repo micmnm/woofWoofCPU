@@ -208,7 +208,7 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 
 ### 5.2 Popover — `PopoverPanel` + `PopoverView`
 
-- A non-activating `NSPanel`, so it never steals keyboard focus, hosting SwiftUI.
+- An `NSPanel` hosting SwiftUI. It opens only on a user click and takes key focus then (Esc works); it never opens by itself.
   - `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]`, level `.statusBar`, so it shows over full-screen apps.
   - It's anchored under the status item. When the menu bar is hidden (full-screen), it's anchored to the top-right of the screen containing the frontmost window.
 - **Header:** the skin's large dog for the current mood plus a funny line, e.g. *"Google Chrome is chewing all the CPU!"*. Lines are picked from a small bank keyed by resource × mood.
@@ -249,7 +249,7 @@ protocol Skin {
 - **PixelSkin** (default) is drawn from ASCII pixel maps in code (`#` ink, `o` cutout, `r` red, `p` pink). These are rendered to `NSImage` at runtime with crisp edges, at 1× and 2×. Iterating on the art means editing text, with no art pipeline. The brainstorm sketches are the starting point and are expected to be redrawn properly.
 - **ShibaSkin** is a vector head drawn with SwiftUI `Path`/`Canvas` and rendered with `ImageRenderer`.
 - Adding a skin is one new type; `SkinRegistry` lists them and Settings picks by `id`.
-- **Bark sound:** a bundled short `.caf` per skin, played with `NSSound`. Until a CC0 recording is sourced, a placeholder system sound is used.
+- **Bark sound:** a bundled short `.caf` per skin, played with `NSSound`. The bundled `bark-pixel` and `bark-shiba` recordings (CC BY-SA 3.0, see README Credits) are used; the system "Funk" sound is only the fallback when a file is missing.
 
 ## 6. Persistence — `SettingsStore`
 
@@ -316,7 +316,7 @@ Copy is kept in `Popover/Lines.swift`, keyed by resource × mood:
 - **Unreadable system processes:** root-owned hogs (Spotlight indexing, backups) are invisible in v1; see §4.1.
 - **Private grouping API:** `responsibility_get_pid_responsible_for_pid` is undocumented. It's mitigated by the `dlsym` lookup with fallbacks, and it's acceptable for an unsandboxed app.
 - **Popover position in full-screen** may need tuning per display setup. This is verified in the manual checklist.
-- **Art and sound:** the v1 pixel and Shiba art are functional placeholders; refining them (especially Pixel) is an explicit follow-up. A CC0 bark recording still needs to be found.
+- **Art and sound:** the v1 pixel and Shiba art are functional placeholders; refining them (especially Pixel) is an explicit follow-up.
 - **Memory thresholds** as a fraction of RAM may feel too high on 64 GB machines and too low on 8 GB ones. They will be tuned after real use; Advanced covers it meanwhile.
 
 ## 11. Later (not v1)
