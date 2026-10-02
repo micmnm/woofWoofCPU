@@ -33,3 +33,5 @@ Or build your own: start in 30 s, ramp 4 cores from 20% to 90% for 3 min, three 
 ## Credits
 
 The bark is "[Barking of a dog](https://commons.wikimedia.org/wiki/File:Barking_of_a_dog.ogg)" by Amada44, Wikimedia Commons, licensed [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). It was trimmed, loudness-normalized and (for the Shiba) pitched up; the derived sounds in `WoofWoofCPU/Resources/Sounds` are likewise CC BY-SA 3.0.
+
+Dog and badge glyphs: Apple SF Symbols.

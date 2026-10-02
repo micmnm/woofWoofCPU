@@ -32,7 +32,7 @@ Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors 
 - Snooze, Ignore, Always ignore (an editable ignore list).
 - Click dog → live top list (mini Activity Monitor).
 - Launch at login, pause watching.
-- Two skins: **Pixel** (default) and **Shiba**; switchable in Settings.
+- Four skins: **Symbol dog** (default), **Pixel symbol dog**, **Pixel** and **Shiba**; switchable in Settings.
 
 ### Explicitly out of v1
 
@@ -73,7 +73,7 @@ woofWoofCPU/
 │   ├── MenuBar/                    # StatusItemController, DogAnimator
 │   ├── Popover/                    # PopoverPanel, PopoverView, rows, sparkline, Lines (funny copy)
 │   ├── Settings/                   # SettingsWindow, SettingsView
-│   ├── Skins/                      # Skin protocol, PixelSkin, ShibaSkin
+│   ├── Skins/                      # Skin protocol, Symbol, PixelSymbol, Pixel, Shiba skins
 │   └── Resources/                  # Info.plist, bark sounds
 ├── scripts/hog.sh                  # deliberately burns CPU / memory to test barking
 └── docs/
@@ -203,7 +203,7 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 
 - AppKit `NSStatusItem` with an image-only button. SwiftUI `MenuBarExtra` was rejected: it can't animate the icon or open the popover programmatically.
 - `DogAnimator` cycles the current skin's frames for the current mood on a timer. Each mood has its own frame duration, e.g. Barking animates faster.
-- Template images (Pixel skin) adapt to light and dark menu bars. Barking tints red; a red-tinted frame is a non-template image.
+- Template images (Symbol and Pixel skins) adapt to light and dark menu bars. Barking tints red; a red-tinted frame is a non-template image.
 - Left-click toggles the popover: in alert mode while some entity is barking, otherwise in list mode. Right-click opens a small menu: Pause watching ▸, Mute, Settings…, Quit woofWoofCPU.
 
 ### 5.2 Popover — `PopoverPanel` + `PopoverView`
@@ -246,7 +246,21 @@ protocol Skin {
 }
 ```
 
-- **PixelSkin** (default) is drawn from ASCII pixel maps in code (`#` ink, `o` cutout, `r` red, `p` pink). These are rendered to `NSImage` at runtime with crisp edges, at 1× and 2×. Iterating on the art means editing text, with no art pipeline. The brainstorm sketches are the starting point and are expected to be redrawn properly.
+Four skins, in picker order:
+
+- **SymbolSkin** (`symbol`, default) is the SF Symbols dog with a mood badge, composed in the 24×18-pt menu bar slot: dog at 11.5 pt semibold on the bottom edge, badge at 6.5 pt heavy in the opposite top corner. Frames are template images unless a mood has a coloured part; then ink follows `labelColor`. The bundled app icon is this dog (`dog.fill`, no badge).
+
+  | Mood | Dog | Badge | Colour |
+  |---|---|---|---|
+  | napping | `dog` | `zzz` (blinks) | ink |
+  | sniffing | `dog.fill` | `questionmark` | ink |
+  | growling | `dog.fill` | `exclamationmark.2` | orange badge |
+  | barking | `dog.fill` | `speaker.wave.3.fill` (blinks) | all red |
+  | sulking | `dog.fill`, flipped to face left | `cloud.rain.fill` (top-left) | ink |
+  | proud | `dog.fill` | `heart.fill` (pulses) | pink badge |
+
+- **PixelSymbolSkin** (`symbolPixel`) is the same compositions rasterized onto a 54×36 grid (one cell per Retina pixel in a 27×18-pt slot): cells at least 42% opaque are on, snapped to ink, red, orange or pink.
+- **PixelSkin** is drawn from ASCII pixel maps in code (`#` ink, `o` cutout, `r` red, `p` pink). These are rendered to `NSImage` at runtime with crisp edges, at 1× and 2×. Iterating on the art means editing text, with no art pipeline.
 - **ShibaSkin** is a vector head drawn with SwiftUI `Path`/`Canvas` and rendered with `ImageRenderer`.
 - Adding a skin is one new type; `SkinRegistry` lists them and Settings picks by `id`.
 - **Bark sound:** a bundled short `.caf` per skin, played with `NSSound`. The bundled `bark-pixel` and `bark-shiba` recordings (CC BY-SA 3.0, see README Credits) are used; the system "Funk" sound is only the fallback when a file is missing.
