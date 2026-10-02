@@ -2,7 +2,7 @@ import AppKit
 import Observation
 import SwiftUI
 
-/// Non-activating panel so the popover never steals keyboard focus, and can float over full-screen apps.
+/// Non-activating panel: it takes key (Esc works) without activating the app, and can float over full-screen apps.
 final class PopoverPanel: NSPanel {
     var onCancel: (() -> Void)?
 

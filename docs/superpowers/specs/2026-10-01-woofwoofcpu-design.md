@@ -209,7 +209,7 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 ### 5.2 Popover — `PopoverPanel` + `PopoverView`
 
 - An `NSPanel` hosting SwiftUI. It opens only on a user click and takes key focus then (Esc works); it never opens by itself.
-  - `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]`, level `.statusBar`, so it shows over full-screen apps.
+  - `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]`, level `.popUpMenu` (above the status bar), so it shows over full-screen apps.
   - It's anchored under the status item. When the menu bar is hidden (full-screen), it's anchored to the top-right of the screen containing the frontmost window.
 - **Header:** the skin's large dog for the current mood plus a funny line, e.g. *"Google Chrome is chewing all the CPU!"*. Lines are picked from a small bank keyed by resource × mood.
 - **Rows:** the top **N** entities (default 5, configurable 3–10). Ordering:
@@ -219,7 +219,7 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 - **Drill-down:** app rows have a disclosure triangle that lists their top member processes, each with its own Quit/Kill. This lets you choose app or process.
 - **"+N more…"** row expands the list in place.
 - **Hover freeze:** while the pointer is over the list, row order doesn't change, so a click always lands on the intended row (borrowed from CleanMyMac).
-- ⌥ is tracked by polling `NSEvent.modifierFlags` every 0.1 s while the popover is open. A global `flagsChanged` monitor would need Accessibility permission, because the non-activating panel leaves the app inactive. While ⌥ is held, every Quit button reads **Kill** and turns red.
+- ⌥ is tracked by polling `NSEvent.modifierFlags` every 0.1 s while the popover is open. The panel opens on a user click and takes key focus, but as a `.nonactivatingPanel` it leaves the app itself inactive; polling needs no Accessibility permission (a global `flagsChanged` monitor would) and also sees an ⌥ that was already held when the popover opened. While ⌥ is held, every Quit button reads **Kill** and turns red.
 - **Footer:** Pause ▸ · Mute toggle · Settings.
 - **Opening:** only by clicking the dog. A bark plays the sound and turns the dog red; the click then opens the popover in alert mode (barking entities first, alert header).
 - **Dismissal:** Esc, clicking outside, or clicking the dog. Dismissing an alert-mode popover while the breach continues sets the mood to Sulking.
