@@ -1,24 +1,9 @@
 // Regenerates AppIcon.appiconset: xcrun swift scripts/make-icon.swift
+import AppKit
 import CoreGraphics
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
-
-// Mirrors PixelArt.nap (WoofWoofCPU/Skins/PixelArt.swift).
-let nap = [
-    "..............#.#.",
-    "...............#..",
-    "..................",
-    "..................",
-    "..................",
-    "............##....",
-    "...........####...",
-    "..#........#####..",
-    ".##.....########..",
-    ".##############...",
-    "..#############...",
-    "..................",
-]
 
 let outDir = "WoofWoofCPU/Resources/Assets.xcassets/AppIcon.appiconset"
 let rgb = CGColorSpaceCreateDeviceRGB()
@@ -38,20 +23,19 @@ func render(_ px: Int) -> CGImage {
     ctx.drawLinearGradient(gradient, start: CGPoint(x: s / 2, y: body.maxY), end: CGPoint(x: s / 2, y: body.minY), options: [])
     ctx.restoreGState()
 
-    // Sprite: 18x12 cells, crisp, centred.
-    let cell = body.width * 0.78 / 18
-    let origin = CGPoint(x: body.midX - cell * 9, y: body.midY - cell * 6)
-    ctx.setShouldAntialias(false)
-    ctx.setFillColor(CGColor(red: 0.20, green: 0.12, blue: 0.08, alpha: 1))
-    for (row, line) in nap.enumerated() {
-        for (col, ch) in line.enumerated() where ch == "#" {
-            let x0 = (origin.x + cell * CGFloat(col)).rounded()
-            let x1 = (origin.x + cell * CGFloat(col + 1)).rounded()
-            let y0 = (origin.y + cell * CGFloat(11 - row)).rounded()
-            let y1 = (origin.y + cell * CGFloat(12 - row)).rounded()
-            ctx.fill(CGRect(x: x0, y: y0, width: max(1, x1 - x0), height: max(1, y1 - y0)))
-        }
-    }
+    // The Symbol dog skin's plain pose (WoofWoofCPU/Skins/SymbolDog.swift), centred.
+    let config = NSImage.SymbolConfiguration(pointSize: body.width * 0.5, weight: .semibold)
+    let dog = NSImage(systemSymbolName: "dog.fill", accessibilityDescription: nil)!.withSymbolConfiguration(config)!
+    let rect = CGRect(x: body.midX - dog.size.width / 2, y: body.midY - dog.size.height / 2,
+                      width: dog.size.width, height: dog.size.height)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+    ctx.beginTransparencyLayer(in: rect, auxiliaryInfo: nil)
+    dog.draw(in: rect)
+    NSColor(red: 0.165, green: 0.102, blue: 0.063, alpha: 1).set()
+    rect.fill(using: .sourceAtop)
+    ctx.endTransparencyLayer()
+    NSGraphicsContext.restoreGraphicsState()
     return ctx.makeImage()!
 }
 
