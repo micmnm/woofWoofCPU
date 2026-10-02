@@ -87,6 +87,24 @@ import Testing
         #expect(entities.first { $0.key == .app(bundleID: "com.apple.Terminal") }?.cpuPercent == 0)
     }
 
+    @Test(arguments: [false, true])
+    func mainPIDIsTheBundleExecutableNotAToolchainBinary(toolchainFirst: Bool) {
+        let xcode = "/Applications/Xcode.app"
+        let main = sample(1, name: "Xcode", path: "\(xcode)/Contents/MacOS/Xcode")
+        let tool = sample(2, name: "swift-frontend", path: "\(xcode)/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend", cpu: 300)
+        let members = toolchainFirst ? [tool, main] : [main, tool]
+        #expect(AppGrouper.mainPID(in: members, bundlePath: xcode) == 1)
+    }
+
+    @Test func appWithOnlyHelpersHasNoMainPID() {
+        let members = [
+            sample(2, name: "Helper", path: "\(chrome)/Contents/Frameworks/H.app/Contents/MacOS/Helper"),
+            sample(3, name: "crashpad", path: "\(chrome)/Contents/Frameworks/X.framework/Helpers/chrome_crashpad_handler"),
+            sample(4, name: "nested", path: "\(chrome)/Contents/MacOS/Sub/tool"),
+        ]
+        #expect(AppGrouper.mainPID(in: members, bundlePath: chrome) == nil)
+    }
+
     @Test func commandLineToolsStayStandaloneEvenWhenTerminalIsResponsible() {
         let entities = grouper.group([
             sample(1, name: "Terminal", path: "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal"),

@@ -106,12 +106,13 @@ public struct AppGrouper: Sendable {
         appPrefix(in: path) ?? (path.hasSuffix(".app") ? path : nil)
     }
 
-    /// The member whose executable sits directly in the app (exactly one `.app/` in its path).
+    /// The member whose executable sits directly in `<bundle>/Contents/MacOS/`; toolchain binaries
+    /// elsewhere in the bundle (Xcode's `swift-frontend`) are not the app.
     static func mainPID(in members: [ProcessSample], bundlePath: String) -> Int32? {
-        members.first { sample in
-            guard let path = sample.process.path, path.hasPrefix(bundlePath + "/"),
-                  let first = offset(of: appMarker, in: path) else { return false }
-            return offset(of: appMarker, in: path, from: first + 1) == nil
+        let macOS = bundlePath + "/Contents/MacOS/"
+        return members.first { sample in
+            guard let path = sample.process.path, path.hasPrefix(macOS) else { return false }
+            return !path.utf8.dropFirst(macOS.utf8.count).contains(UInt8(ascii: "/"))
         }?.process.pid
     }
 
