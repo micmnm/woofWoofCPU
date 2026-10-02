@@ -115,7 +115,7 @@ public enum ArgumentParser {
     static func duration(_ flags: [String: String], _ flag: String, default fallback: Int) throws(UsageError) -> Int {
         guard let text = flags[flag] else { return fallback }
         guard let seconds = DurationParser.seconds(from: text) else {
-            throw UsageError("\(flag) needs a duration like 90, 90s, 5m, 1h or 1m30s, not '\(text)'")
+            throw UsageError("\(flag) needs a duration like 90, 90s, 5m, 1h or 1m30s, at most 7 days (168h), not '\(text)'")
         }
         return seconds
     }
@@ -154,7 +154,7 @@ public enum Usage {
           --every DUR [--times K]   repeat on a cycle; --every must be longer than --for;
                                     without --times it repeats until stopped
 
-        DUR is 90, 90s, 5m, 1h or 1m30s (a bare number means seconds). --load is percent of each core.
+        DUR is 90, 90s, 5m, 1h or 1m30s (a bare number means seconds), at most 168h. --load is percent of each core.
         Ctrl-C, or Quit / ⌥Kill from the dog, stops everything.
         """
 }

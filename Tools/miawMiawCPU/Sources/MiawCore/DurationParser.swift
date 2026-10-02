@@ -1,8 +1,14 @@
 /// Parses `90`, `90s`, `5m`, `1h`, `1m30s` into whole seconds. A bare number means seconds.
+/// Anything over `maxSeconds` is rejected, which keeps schedule and countdown arithmetic far from overflow.
 public enum DurationParser {
+    public static let maxSeconds = 7 * 24 * 3600
     private static let units: [(Character, Int)] = [("h", 3600), ("m", 60), ("s", 1)]
 
     public static func seconds(from text: String) -> Int? {
+        parse(text).flatMap { $0 <= maxSeconds ? $0 : nil }
+    }
+
+    private static func parse(_ text: String) -> Int? {
         guard !text.isEmpty else { return nil }
         if text.allSatisfy(\.isASCIIDigit) { return Int(text) }
 

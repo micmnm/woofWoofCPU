@@ -110,6 +110,7 @@ import Testing
         "mem", "mem --gb", "mem --gb 0", "mem --gb abc", "mem --gb -1", "mem --gb nan", "mem --gb inf",
         "mem --gb 1 --pattern ramp", "mem --gb 1 --cores 2", "mem --gb 1 --load 50",
         "demo", "demo meow", "demo bark extra", "demo bark --cores 4",
+        "cpu --for 9223372036854775807", "cpu --in 169h", "mem --gb 1 --for 2m --every 169h",
     ])
     func rejectsBadArguments(line: String) {
         #expect(failure(line) != nil)
@@ -123,6 +124,7 @@ import Testing
         #expect(failure("mem")?.contains("--gb") == true)
         #expect(failure("cpu --load 150")?.contains("--load") == true)
         #expect(failure("cpu --for soon")?.contains("soon") == true)
+        #expect(failure("cpu --for 9223372036854775807")?.contains("7 days") == true)
     }
 
     @Test func usageListsEveryCommand() {
