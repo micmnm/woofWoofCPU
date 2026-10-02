@@ -62,7 +62,8 @@ import Testing
     @Test func posixSignallerReportsGoneAndNotAllowed() {
         let signaller = PosixSignaller(quitApp: { _ in false })
         #expect(signaller.send(0, to: 99_999_999) == .alreadyGone)
-        #expect(signaller.send(0, to: 1) == .notAllowed) // launchd is root
+        // launchd is root, so it is only off-limits when the tests are not.
+        if getuid() != 0 { #expect(signaller.send(0, to: 1) == .notAllowed) }
         #expect(signaller.isAlive(getpid()))
     }
 
