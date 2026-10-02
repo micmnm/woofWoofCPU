@@ -55,6 +55,12 @@ import Testing
             == "🐱 miaw… holding 0.3 GB · 5:00 left · run 1/2")
     }
 
+    @Test func memSaysAllocatingUntilEveryPageIsTouched() {
+        let job = MemJob(gigabytes: 2, schedule: Schedule(delay: 0, duration: 20))
+        #expect(Status.line(for: .running(run: 0, elapsed: 1, remaining: 19), mem: job, allocating: true)
+            == "🐱 miaw… allocating 2.0 GB… · 0:19 left")
+    }
+
     @Test func nappingCountsDownToTheNextRun() {
         let job = MemJob(gigabytes: 1, schedule: Schedule(delay: 0, duration: 60, every: 600))
         #expect(Status.line(for: .napping(remaining: 478), mem: job) == "🐱 napping… next run in 7:58")

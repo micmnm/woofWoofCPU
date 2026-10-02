@@ -11,7 +11,8 @@ func write(_ text: String, to handle: FileHandle = .standardOutput) {
     handle.write(Data(text.utf8))
 }
 
-final class StopFlag: Sendable {
+/// A thread-safe boolean that only ever goes from false to true.
+final class Flag: Sendable {
     private let state = OSAllocatedUnfairLock(initialState: false)
 
     var isSet: Bool { state.withLock { $0 } }
@@ -23,7 +24,7 @@ final class StopFlag: Sendable {
 
 /// One thread per core; each 100 ms slice spins for the pattern's load and sleeps the rest.
 final class CPUBurn {
-    private let flag = StopFlag()
+    private let flag = Flag()
     private let group = DispatchGroup()
 
     /// `runStart` is the run's scheduled start on the `monotonicSeconds` clock, so patterns stay on schedule.
@@ -39,7 +40,7 @@ final class CPUBurn {
         }
     }
 
-    private static func burn(job: CPUJob, runStart: Double, flag: StopFlag) {
+    private static func burn(job: CPUJob, runStart: Double, flag: Flag) {
         let slice = 0.1
         while !flag.isSet {
             let sliceStart = monotonicSeconds()
@@ -57,19 +58,38 @@ final class CPUBurn {
 }
 
 /// Touched memory, so it counts in the process's footprint rather than just its address space.
+/// Touching multi-GB takes seconds, so it runs on its own thread to keep the main queue's signal
+/// sources responsive.
 final class MemoryHold {
-    private let pointer: UnsafeMutableRawPointer
+    // UnsafeMutableRawPointer is not Sendable; the touching thread gets the address instead.
+    private let address: UInt
+    private let stop = Flag()
+    private let touched = Flag()
+    private let group = DispatchGroup()
 
     init?(byteCount: Int) {
         guard let pointer = malloc(byteCount) else { return nil }
-        self.pointer = pointer
-        for offset in stride(from: 0, to: byteCount, by: 4096) {
-            pointer.storeBytes(of: 1, toByteOffset: offset, as: UInt8.self)
+        address = UInt(bitPattern: pointer)
+        group.enter()
+        let thread = Thread { [address, stop, touched, group] in
+            let pointer = UnsafeMutableRawPointer(bitPattern: address)!
+            for offset in stride(from: 0, to: byteCount, by: 4096) {
+                if stop.isSet { break }
+                pointer.storeBytes(of: 1, toByteOffset: offset, as: UInt8.self)
+            }
+            touched.set()
+            group.leave()
         }
+        thread.name = "miaw-mem"
+        thread.start()
     }
 
+    var isAllocating: Bool { !touched.isSet }
+
     func release() {
-        free(pointer)
+        stop.set()
+        group.wait()
+        free(UnsafeMutableRawPointer(bitPattern: address))
     }
 }
 
@@ -155,7 +175,7 @@ final class Runner {
         let key: String
         switch phase {
         case .waiting: key = "waiting"
-        case .running(let run, _, _): key = "run \(run)"
+        case .running(let run, _, _): key = "run \(run)" + (memory?.isAllocating == true ? " allocating" : "")
         case .napping: key = "napping"
         case .finished: key = "finished"
         }
@@ -166,7 +186,7 @@ final class Runner {
         let line: String
         switch work {
         case .cpu(let job): line = Status.line(for: phase, cpu: job)
-        case .mem(let job): line = Status.line(for: phase, mem: job)
+        case .mem(let job): line = Status.line(for: phase, mem: job, allocating: memory?.isAllocating == true)
         }
         write(isTTY ? "\r\u{1B}[K" + line : line + "\n")
     }

@@ -21,9 +21,11 @@ public enum Status {
         }
     }
 
-    public static func line(for phase: Phase, mem job: MemJob) -> String {
+    /// `allocating` while the pages are still being touched.
+    public static func line(for phase: Phase, mem job: MemJob, allocating: Bool = false) -> String {
         line(for: phase, schedule: job.schedule) { _ in
-            "holding \(String(format: "%.1f", job.gigabytes)) GB"
+            let size = "\(String(format: "%.1f", job.gigabytes)) GB"
+            return allocating ? "allocating \(size)…" : "holding \(size)"
         }
     }
 
