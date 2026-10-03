@@ -23,7 +23,7 @@ func render(_ px: Int) -> CGImage {
     ctx.drawLinearGradient(gradient, start: CGPoint(x: s / 2, y: body.maxY), end: CGPoint(x: s / 2, y: body.minY), options: [])
     ctx.restoreGState()
 
-    // The Symbol dog skin's plain pose (WoofWoofCPU/Skins/SymbolDog.swift), centred.
+    // Same symbol and weight as the Symbol skin's plain pose (SymbolDog.swift), not shared code; the PNGs depend on the installed SF Symbols version.
     let config = NSImage.SymbolConfiguration(pointSize: body.width * 0.5, weight: .semibold)
     let dog = NSImage(systemSymbolName: "dog.fill", accessibilityDescription: nil)!.withSymbolConfiguration(config)!
     let rect = CGRect(x: body.midX - dog.size.width / 2, y: body.midY - dog.size.height / 2,

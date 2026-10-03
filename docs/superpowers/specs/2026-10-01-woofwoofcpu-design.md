@@ -203,7 +203,7 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 
 - AppKit `NSStatusItem` with an image-only button. SwiftUI `MenuBarExtra` was rejected: it can't animate the icon or open the popover programmatically.
 - `DogAnimator` cycles the current skin's frames for the current mood on a timer. Each mood has its own frame duration, e.g. Barking animates faster.
-- Template images (Symbol and Pixel skins) adapt to light and dark menu bars. Barking tints red; a red-tinted frame is a non-template image.
+- Template images (Symbol and Pixel skins) adapt to light and dark menu bars. Moods with a coloured part (growling, barking, proud) are non-template images; barking is all red.
 - Left-click toggles the popover: in alert mode while some entity is barking, otherwise in list mode. Right-click opens a small menu: Pause watching ▸, Mute, Settings…, Quit woofWoofCPU.
 
 ### 5.2 Popover — `PopoverPanel` + `PopoverView`
@@ -238,10 +238,11 @@ A regular window hosting SwiftUI, with three tabs:
 protocol Skin {
     var id: String { get }
     var displayName: String { get }
-    var isTemplate: Bool { get }                       // Pixel: true, Shiba: false
+    var isPixelArt: Bool { get }                       // portrait is scaled without interpolation
     func frames(for mood: DogMood) -> [NSImage]        // 18-pt menu bar frames
     func frameDuration(for mood: DogMood) -> Duration
     func portrait(for mood: DogMood) -> NSImage        // large art for the popover header
+    var iconArt: NSImage { get }                       // art composed onto the app icon
     var barkSound: URL { get }
 }
 ```
@@ -259,7 +260,7 @@ Four skins, in picker order:
   | sulking | `dog.fill`, flipped to face left | `cloud.rain.fill` (top-left) | ink |
   | proud | `dog.fill` | `heart.fill` (pulses) | pink badge |
 
-- **PixelSymbolSkin** (`symbolPixel`) is the same compositions rasterized onto a 54×36 grid (one cell per Retina pixel in a 27×18-pt slot): cells at least 42% opaque are on, snapped to ink, red, orange or pink.
+- **PixelSymbolSkin** (`symbolPixel`) is the same compositions rasterized onto a 54×36 grid (one cell per Retina pixel in a 27×18-pt slot) plus a 27×18 grid for the 1× rep: cells at least 42% opaque are on, snapped to ink, red, orange or pink. A frame is a template only when every on-cell is ink. Portraits use the 27×18 grid at 2-pt cells and are shown at whole-number multiples.
 - **PixelSkin** is drawn from ASCII pixel maps in code (`#` ink, `o` cutout, `r` red, `p` pink). These are rendered to `NSImage` at runtime with crisp edges, at 1× and 2×. Iterating on the art means editing text, with no art pipeline.
 - **ShibaSkin** is a vector head drawn with SwiftUI `Path`/`Canvas` and rendered with `ImageRenderer`.
 - Adding a skin is one new type; `SkinRegistry` lists them and Settings picks by `id`.
