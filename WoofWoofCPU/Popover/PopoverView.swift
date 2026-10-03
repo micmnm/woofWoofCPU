@@ -40,10 +40,12 @@ struct PopoverView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(nsImage: coordinator.skin.portrait(for: coordinator.mood))
+            let portrait = coordinator.skin.portrait(for: coordinator.mood)
+            let size = coordinator.skin.displaySize(of: portrait, fitting: CGSize(width: 64, height: 48))
+            Image(nsImage: portrait)
                 .interpolation(coordinator.skin.isPixelArt ? .none : .high)
                 .resizable()
-                .scaledToFit()
+                .frame(width: size.width, height: size.height)
                 .frame(width: 64, height: 48)
             VStack(alignment: .leading, spacing: 2) {
                 Text(headline).font(.system(size: 13, weight: .semibold)).fixedSize(horizontal: false, vertical: true)

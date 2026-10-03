@@ -55,25 +55,27 @@ final class PixelSymbolSkin: Skin {
 
     func portrait(for mood: DogMood) -> NSImage {
         if let cached = portraitCache[mood] { return cached }
-        let image = Self.portrait(Self.cells(for: SymbolDog.poses(for: mood)[0], grid: Self.fineGrid))
+        let image = Self.portrait(Self.cells(for: SymbolDog.poses(for: mood)[0], grid: Self.coarseGrid))
         portraitCache[mood] = image
         return image
     }
 
     var iconArt: NSImage {
-        Self.portrait(Self.cells(for: SymbolDog.Pose(), grid: Self.fineGrid))
+        Self.portrait(Self.cells(for: SymbolDog.Pose(), grid: Self.coarseGrid))
     }
 
-    /// Rasterizes the composition (inset 1.5 pt in the 27-pt slot) and keeps cells at least 42% opaque.
+    /// Rasterizes the composition (inset 1.5 pt in the 27-pt slot, sRGB bitmap) and keeps cells at least 42% opaque.
     static func cells(for pose: SymbolDog.Pose, grid width: Int) -> Cells {
         let height = width * 2 / 3
         let zoom = CGFloat(width) / 27
-        guard let rep = NSBitmapImageRep(
+        guard let blank = NSBitmapImageRep(
             bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4,
             hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: width * 4, bitsPerPixel: 32
-        ), let context = NSGraphicsContext(bitmapImageRep: rep), let data = rep.bitmapData else { return [] }
+        ), let rep = blank.retagging(with: .sRGB),
+            let context = NSGraphicsContext(bitmapImageRep: rep), let data = rep.bitmapData else { return [] }
+        let resolved = SymbolDog.resolve(pose, zoom: zoom)
         let composed = NSImage(size: NSSize(width: width, height: height), flipped: true) { _ in
-            SymbolDog.draw(pose, at: NSPoint(x: 1.5 * zoom, y: 0), zoom: zoom, ink: .black)
+            resolved.draw(at: NSPoint(x: 1.5 * zoom, y: 0), ink: .black)
             return true
         }
         NSGraphicsContext.saveGraphicsState()
@@ -115,9 +117,9 @@ final class PixelSymbolSkin: Skin {
         return image
     }
 
-    /// 2-pt cells from the fine grid; never a template.
+    /// 2-pt cells from the coarse grid (54×36 pt), so scaling by whole numbers keeps every cell; never a template.
     static func portrait(_ cells: Cells) -> NSImage {
-        let representation = rep(cells, grid: fineGrid, cell: 2, template: false)
+        let representation = rep(cells, grid: coarseGrid, cell: 2, template: false)
         let image = NSImage(size: representation.size)
         image.addRepresentation(representation)
         return image

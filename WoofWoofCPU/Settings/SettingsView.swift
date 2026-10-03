@@ -146,11 +146,13 @@ struct DogSettings: View {
             HStack(spacing: 12) {
                 ForEach(DogMood.allCases, id: \.self) { mood in
                     VStack {
-                        Image(nsImage: selected.portrait(for: mood))
+                        let portrait = selected.portrait(for: mood)
+                        let size = selected.displaySize(of: portrait, fitting: CGSize(width: 56, height: 40))
+                        Image(nsImage: portrait)
                             .interpolation(selected.isPixelArt ? .none : .high)
                             .resizable()
-                            .scaledToFit()
-                            .frame(width: 52, height: 40)
+                            .frame(width: size.width, height: size.height)
+                            .frame(width: 56, height: 40)
                         Text(mood.rawValue.capitalized).font(.caption2).foregroundStyle(.secondary)
                     }
                 }

@@ -20,6 +20,13 @@ protocol Skin: AnyObject {
 }
 
 extension Skin {
+    /// Fits `image` in `box`; pixel art snaps down to a whole-number multiple so no cell is dropped.
+    func displaySize(of image: NSImage, fitting box: CGSize) -> CGSize {
+        let fit = min(box.width / image.size.width, box.height / image.size.height)
+        let scale = isPixelArt && fit >= 1 ? fit.rounded(.down) : fit
+        return CGSize(width: image.size.width * scale, height: image.size.height * scale)
+    }
+
     var iconArt: NSImage { portrait(for: .napping) }
 }
 
