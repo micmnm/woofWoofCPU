@@ -55,13 +55,13 @@ final class PixelSymbolSkin: Skin {
 
     func portrait(for mood: DogMood) -> NSImage {
         if let cached = portraitCache[mood] { return cached }
-        let image = Self.portrait(Self.cells(for: SymbolDog.poses(for: mood)[0], grid: Self.coarseGrid))
+        let image = Self.portrait(Self.cells(for: SymbolDog.poses(for: mood)[0], grid: Self.fineGrid))
         portraitCache[mood] = image
         return image
     }
 
     var iconArt: NSImage {
-        Self.portrait(Self.cells(for: SymbolDog.Pose(), grid: Self.coarseGrid))
+        Self.portrait(Self.cells(for: SymbolDog.Pose(), grid: Self.fineGrid))
     }
 
     /// Rasterizes the composition (inset 1.5 pt in the 27-pt slot, sRGB bitmap) and keeps cells at least 42% opaque.
@@ -117,9 +117,9 @@ final class PixelSymbolSkin: Skin {
         return image
     }
 
-    /// 2-pt cells from the coarse grid (54×36 pt), so scaling by whole numbers keeps every cell; never a template.
+    /// 1-pt cells from the fine grid (54×36 pt): whole device pixels at 1× and 2× with full badge detail; never a template.
     static func portrait(_ cells: Cells) -> NSImage {
-        let representation = rep(cells, grid: coarseGrid, cell: 2, template: false)
+        let representation = rep(cells, grid: fineGrid, cell: 1, template: false)
         let image = NSImage(size: representation.size)
         image.addRepresentation(representation)
         return image

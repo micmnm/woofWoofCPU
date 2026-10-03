@@ -260,7 +260,7 @@ Four skins, in picker order:
   | sulking | `dog.fill`, flipped to face left | `cloud.rain.fill` (top-left) | ink |
   | proud | `dog.fill` | `heart.fill` (pulses) | pink badge |
 
-- **PixelSymbolSkin** (`symbolPixel`) is the same compositions rasterized onto a 54×36 grid (one cell per Retina pixel in a 27×18-pt slot) plus a 27×18 grid for the 1× rep: cells at least 42% opaque are on, snapped to ink, red, orange or pink. A frame is a template only when every on-cell is ink. Portraits use the 27×18 grid at 2-pt cells and are shown at whole-number multiples.
+- **PixelSymbolSkin** (`symbolPixel`) is the same compositions rasterized onto a 54×36 grid (one cell per Retina pixel in a 27×18-pt slot) plus a 27×18 grid for the 1× rep: cells at least 42% opaque are on, snapped to ink, red, orange or pink. A frame is a template only when every on-cell is ink. Portraits use the 54×36 grid at 1-pt cells (whole device pixels at 1× and 2×, badges intact) and are shown at whole-number multiples.
 - **PixelSkin** is drawn from ASCII pixel maps in code (`#` ink, `o` cutout, `r` red, `p` pink). These are rendered to `NSImage` at runtime with crisp edges, at 1× and 2×. Iterating on the art means editing text, with no art pipeline.
 - **ShibaSkin** is a vector head drawn with SwiftUI `Path`/`Canvas` and rendered with `ImageRenderer`.
 - Adding a skin is one new type; `SkinRegistry` lists them and Settings picks by `id`.
