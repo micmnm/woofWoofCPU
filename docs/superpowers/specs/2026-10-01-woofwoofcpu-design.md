@@ -240,10 +240,10 @@ protocol Skin {
     var displayName: String { get }
     var isPixelArt: Bool { get }                       // portrait is scaled without interpolation
     func frames(for mood: DogMood) -> [NSImage]        // 18-pt menu bar frames
-    func frameDuration(for mood: DogMood) -> Duration
+    func frameDuration(for mood: DogMood) -> TimeInterval
     func portrait(for mood: DogMood) -> NSImage        // large art for the popover header
     var iconArt: NSImage { get }                       // art composed onto the app icon
-    var barkSound: URL { get }
+    var barkSoundName: String { get }
 }
 ```
 

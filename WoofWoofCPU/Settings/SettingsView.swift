@@ -185,7 +185,7 @@ struct DogSettings: View {
                             .interpolation(selected.isPixelArt ? .none : .high)
                             .resizable()
                             .frame(width: size.width, height: size.height)
-                            .frame(width: 56, height: 40)
+                            .frame(width: 54, height: 40)
                         Text(mood.rawValue.capitalized).font(.caption2).foregroundStyle(.secondary)
                     }
                 }
