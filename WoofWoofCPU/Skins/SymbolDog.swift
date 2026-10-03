@@ -47,38 +47,59 @@ enum SymbolDog {
         }
     }
 
-    /// Draws into a flipped context: dog on the slot's bottom edge, badge in the opposite top corner.
-    static func draw(_ pose: Pose, at origin: NSPoint, zoom: CGFloat, ink: NSColor) {
-        let slotWidth = slot.width * zoom
-        let slotHeight = slot.height * zoom
-        if let dog = symbol(pose.dog, pointSize: dogPointSize * zoom, weight: .semibold) {
-            let rect = NSRect(
-                x: pose.flip ? origin.x + slotWidth - dog.size.width : origin.x,
-                y: origin.y + slotHeight - dog.size.height,
-                width: dog.size.width, height: dog.size.height
-            )
-            NSGraphicsContext.saveGraphicsState()
-            if pose.flip {
-                let mirror = NSAffineTransform()
-                mirror.translateX(by: rect.midX, yBy: 0)
-                mirror.scaleX(by: -1, yBy: 1)
-                mirror.translateX(by: -rect.midX, yBy: 0)
-                mirror.concat()
+    /// A pose with its symbols resolved once; `draw` only tints and draws.
+    struct Resolved {
+        fileprivate let pose: Pose
+        fileprivate let zoom: CGFloat
+        fileprivate let dog: NSImage?
+        fileprivate let badge: NSImage?
+        /// Size of the unscaled badge, which anchors the corner the pulse stays centred in.
+        fileprivate let fullBadgeSize: NSSize
+
+        /// Draws into a flipped context: dog on the slot's bottom edge, badge in the opposite top corner.
+        func draw(at origin: NSPoint, ink: NSColor) {
+            let slotWidth = slot.width * zoom
+            let slotHeight = slot.height * zoom
+            if let dog {
+                let rect = NSRect(
+                    x: pose.flip ? origin.x + slotWidth - dog.size.width : origin.x,
+                    y: origin.y + slotHeight - dog.size.height,
+                    width: dog.size.width, height: dog.size.height
+                )
+                NSGraphicsContext.saveGraphicsState()
+                if pose.flip {
+                    let mirror = NSAffineTransform()
+                    mirror.translateX(by: rect.midX, yBy: 0)
+                    mirror.scaleX(by: -1, yBy: 1)
+                    mirror.translateX(by: -rect.midX, yBy: 0)
+                    mirror.concat()
+                }
+                drawTinted(dog, in: rect, color: pose.dogColor ?? ink)
+                NSGraphicsContext.restoreGraphicsState()
             }
-            drawTinted(dog, in: rect, color: pose.dogColor ?? ink)
-            NSGraphicsContext.restoreGraphicsState()
+            guard let badge else { return }
+            let x = pose.flip ? origin.x : origin.x + slotWidth - fullBadgeSize.width
+            let rect = NSRect(
+                x: x + (fullBadgeSize.width - badge.size.width) / 2,
+                y: origin.y + (fullBadgeSize.height - badge.size.height) / 2,
+                width: badge.size.width, height: badge.size.height
+            )
+            drawTinted(badge, in: rect, color: pose.badgeColor ?? ink)
         }
-        guard let name = pose.badge,
-              let badge = symbol(name, pointSize: pose.badgePointSize * zoom, weight: .heavy),
-              let full = symbol(name, pointSize: badgePointSize * zoom, weight: .heavy) else { return }
+    }
+
+    static func resolve(_ pose: Pose, zoom: CGFloat) -> Resolved {
+        let name = pose.badge
+        let badge = name.flatMap { symbol($0, pointSize: pose.badgePointSize * zoom, weight: .heavy) }
         // A smaller badge (the proud pulse) stays centred where the full-size one sits.
-        let x = pose.flip ? origin.x : origin.x + slotWidth - full.size.width
-        let rect = NSRect(
-            x: x + (full.size.width - badge.size.width) / 2,
-            y: origin.y + (full.size.height - badge.size.height) / 2,
-            width: badge.size.width, height: badge.size.height
+        let full = pose.badgePointSize == badgePointSize
+            ? badge
+            : name.flatMap { symbol($0, pointSize: badgePointSize * zoom, weight: .heavy) }
+        return Resolved(
+            pose: pose, zoom: zoom,
+            dog: symbol(pose.dog, pointSize: dogPointSize * zoom, weight: .semibold),
+            badge: badge, fullBadgeSize: full?.size ?? .zero
         )
-        drawTinted(badge, in: rect, color: pose.badgeColor ?? ink)
     }
 
     private static func symbol(_ name: String, pointSize: CGFloat, weight: NSFont.Weight) -> NSImage? {

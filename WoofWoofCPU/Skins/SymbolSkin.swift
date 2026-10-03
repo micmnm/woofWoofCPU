@@ -33,8 +33,9 @@ final class SymbolSkin: Skin {
     /// Drawn on demand so `labelColor` resolves against the menu bar's appearance.
     static func render(_ pose: SymbolDog.Pose, zoom: CGFloat, template: Bool) -> NSImage {
         let size = NSSize(width: SymbolDog.slot.width * zoom, height: SymbolDog.slot.height * zoom)
+        let resolved = SymbolDog.resolve(pose, zoom: zoom)
         let image = NSImage(size: size, flipped: true) { _ in
-            SymbolDog.draw(pose, at: .zero, zoom: zoom, ink: template ? .black : .labelColor)
+            resolved.draw(at: .zero, ink: template ? .black : .labelColor)
             return true
         }
         image.isTemplate = template
