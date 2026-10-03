@@ -125,12 +125,12 @@ public struct AppGrouper: Sendable {
         offset(of: appMarker, in: path).map { String(decoding: path.utf8.prefix($0), as: UTF8.self) + ".app" }
     }
 
-    /// UTF-8 offset of the first `marker` at or after `start`.
-    private static func offset(of marker: [UInt8], in path: String, from start: Int = 0) -> Int? {
+    /// UTF-8 offset of the first `marker` in `path`.
+    private static func offset(of marker: [UInt8], in path: String) -> Int? {
         var path = path
         return path.withUTF8 { bytes in
-            guard bytes.count >= marker.count, start <= bytes.count - marker.count else { return nil }
-            search: for index in start...(bytes.count - marker.count) {
+            guard bytes.count >= marker.count else { return nil }
+            search: for index in 0...(bytes.count - marker.count) {
                 for (shift, byte) in marker.enumerated() where bytes[index + shift] != byte { continue search }
                 return index
             }
