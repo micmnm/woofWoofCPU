@@ -2,8 +2,25 @@
 
 A macOS menu bar dog that watches your apps and processes. When one hogs CPU or memory for too long, it barks and lets you Quit (⌥ Kill), Snooze or Ignore it.
 
-- Design spec: [docs/superpowers/specs/2026-10-01-woofwoofcpu-design.md](docs/superpowers/specs/2026-10-01-woofwoofcpu-design.md)
-- Research on similar apps: [docs/research/2026-10-01-similar-apps.md](docs/research/2026-10-01-similar-apps.md)
+## What it does
+
+- **Watches** every app of yours (helper processes grouped under their app) and standalone processes, for CPU and memory.
+- **Escalates** when something stays over its limit: the dog naps, sniffs (?), growls (orange !!), then **barks** — a red dog, a real bark, and reminder barks at +10/+30/+90 s. It never pops anything up on its own.
+- **Click the dog** for the live top list; while it's barking the popover opens in alert mode with the culprit first. Per app or per process: **Quit** (hold ⌥ for **Kill**), **Snooze** (15 min / 1 h / until tomorrow), **Ignore**, **Always ignore**. Dismissing a bark makes the dog sulk; quitting the hog makes it proud.
+- **Settings:** sensitivity slider (Chill ↔ Paranoid) with exact Advanced limits, check interval (2/5/10/30 s), rows shown, mute, launch at login, skin, ignore list and snoozes. Right-click the dog to pause watching or quit.
+- **Skins:** Symbol dog (default), Pixel symbol dog, the original Pixel dog, Shiba.
+- **Light on the Mac:** about 0.7 % of one core while calm.
+
+Watches only your own processes (system/other users' processes need privileges). No network monitoring yet.
+
+## Docs
+
+- [Design spec](docs/superpowers/specs/2026-10-01-woofwoofcpu-design.md) — the authority for behaviour
+- [Decisions log](docs/decisions.md) — what was decided and why
+- [Manual checks](docs/manual-checks.md) — UI checklist and what's still unverified
+- [v1 implementation plan](docs/superpowers/plans/2026-10-01-woofwoofcpu-v1.md)
+- [Research on similar apps](docs/research/2026-10-01-similar-apps.md)
+- [CLAUDE.md](CLAUDE.md) — working notes for AI-assisted development
 
 ## Build & run
 
