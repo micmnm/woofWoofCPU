@@ -21,6 +21,7 @@ struct GeneralSettings: View {
     @State private var launchAtLogin = LaunchAtLogin.isRegistered
     @State private var needsApproval = LaunchAtLogin.needsApproval
     @State private var launchError: String?
+    @State private var host = WindowRef()
 
     private var sliderValue: Binding<Double> {
         Binding(
@@ -87,8 +88,10 @@ struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+        .background(WindowReader { host.window = $0 })
         // The user may have approved (or removed) the login item in System Settings meanwhile.
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+            guard let window = note.object as? NSWindow, window === host.window else { return }
             launchError = nil
             syncLaunchAtLogin()
         }
@@ -115,6 +118,36 @@ struct GeneralSettings: View {
                 settings.limitsSetting = .custom(limits)
             }
         )
+    }
+}
+
+/// Not observed: only read when a key-window notification arrives.
+@MainActor
+private final class WindowRef {
+    weak var window: NSWindow?
+}
+
+/// Reports the window hosting this view whenever it changes.
+private struct WindowReader: NSViewRepresentable {
+    let onChange: @MainActor (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> ReaderView {
+        let view = ReaderView()
+        view.onChange = onChange
+        return view
+    }
+
+    func updateNSView(_ view: ReaderView, context: Context) {
+        view.onChange = onChange
+    }
+
+    final class ReaderView: NSView {
+        var onChange: (@MainActor (NSWindow?) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            onChange?(window)
+        }
     }
 }
 
