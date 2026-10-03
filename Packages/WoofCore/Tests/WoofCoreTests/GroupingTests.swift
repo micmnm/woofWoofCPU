@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import WoofCore
 
@@ -94,6 +95,46 @@ import Testing
         let tool = sample(2, name: "swift-frontend", path: "\(xcode)/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend", cpu: 300)
         let members = toolchainFirst ? [tool, main] : [main, tool]
         #expect(AppGrouper.mainPID(in: members, bundlePath: xcode) == 1)
+    }
+
+    @Test func mainPIDPrefersTheBundleExecutableAmongMacOSMembers() {
+        let app = "/Applications/Tool.app"
+        let members = [
+            sample(1, name: "helper-tool", path: "\(app)/Contents/MacOS/helper-tool"),
+            sample(2, name: "Tool", path: "\(app)/Contents/MacOS/Tool"),
+        ]
+        #expect(AppGrouper.mainPID(in: members, bundlePath: app, executableName: "Tool") == 2)
+        #expect(AppGrouper.mainPID(in: members, bundlePath: app, executableName: nil) == 1)
+        #expect(AppGrouper.mainPID(in: members, bundlePath: app, executableName: "Missing") == 1)
+    }
+
+    @Test func groupUsesTheBundleExecutableForMainPID() {
+        let app = "/Applications/Tool.app"
+        let grouper = AppGrouper(
+            selfPID: 999,
+            currentUID: 501,
+            appInfo: StubAppInfo(table: [app: AppInfo(bundleID: "com.example.Tool", name: "Tool", executableName: "Tool")])
+        )
+        let entities = grouper.group([
+            sample(1, name: "helper-tool", path: "\(app)/Contents/MacOS/helper-tool"),
+            sample(2, name: "Tool", path: "\(app)/Contents/MacOS/Tool"),
+        ])
+        #expect(entities.first?.mainPID == 2)
+    }
+
+    @Test func bundleProviderReadsTheExecutableName() throws {
+        let app = FileManager.default.temporaryDirectory
+            .appendingPathComponent("woof-\(UUID().uuidString)/Tool.app")
+        defer { try? FileManager.default.removeItem(at: app.deletingLastPathComponent()) }
+        let contents = app.appendingPathComponent("Contents")
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        let plist: [String: Any] = [
+            "CFBundleIdentifier": "com.example.Tool", "CFBundleName": "Tool", "CFBundleExecutable": "Tool",
+        ]
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+        let info = BundleAppInfoProvider().appInfo(bundlePath: app.path)
+        #expect(info == AppInfo(bundleID: "com.example.Tool", name: "Tool", executableName: "Tool"))
     }
 
     @Test func appWithOnlyHelpersHasNoMainPID() {
