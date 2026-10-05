@@ -116,7 +116,7 @@ All `WoofCore` units are pure or depend on injected protocols (`Clock`, `Process
 
 ### 4.2 Tick scheduling and self-cost
 
-- Tick interval is user-configurable (Settings → General → Check every: 2 / 5 / 10 / 30 s), default **5 s**. A change applies from the next tick. Breach timing is wall-clock, so the interval only changes detection granularity.
+- Tick interval is user-configurable (Settings → General → Sniffing slider: Snoozy 30 s / Laid-back 10 s / Eager 5 s / Zoomies 2 s; holding ⌥ appends the seconds to the label), default **5 s**. A change applies from the next tick. Breach timing is wall-clock, so the interval only changes detection granularity.
 - Ticks run on a background task; results are published to the main actor.
 - Ticks are suspended while the system sleeps. On `NSWorkspace.didWakeNotification` all breach timers reset, so time asleep never counts toward a bark.
 - Budget: < 1% of one core on average while calm, verified with Activity Monitor during manual testing (success criterion 4).

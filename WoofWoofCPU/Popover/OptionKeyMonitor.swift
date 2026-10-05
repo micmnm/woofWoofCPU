@@ -1,7 +1,7 @@
 import AppKit
 import Observation
 
-/// Polls the ⌥ key while the popover is open. Polling `NSEvent.modifierFlags` needs no
+/// Polls the ⌥ key while the popover or Settings is open. Polling `NSEvent.modifierFlags` needs no
 /// Accessibility permission, unlike a global flagsChanged monitor for a non-active app.
 @MainActor
 @Observable

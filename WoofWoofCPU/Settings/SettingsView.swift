@@ -22,6 +22,19 @@ struct GeneralSettings: View {
     @State private var needsApproval = LaunchAtLogin.needsApproval
     @State private var launchError: String?
     @State private var host = WindowRef()
+    @State private var optionKey = OptionKeyMonitor()
+
+    /// Slowest first, matching the slider's left-to-right.
+    private static let paces: [(seconds: TimeInterval, name: String)] = Array(
+        zip(SettingsStore.pollIntervalChoices.reversed(), ["Snoozy", "Laid-back", "Eager", "Zoomies"])
+    )
+
+    private var paceValue: Binding<Double> {
+        Binding(
+            get: { Double(Self.paces.firstIndex { $0.seconds == settings.pollInterval } ?? 0) },
+            set: { settings.pollInterval = Self.paces[Int($0.rounded())].seconds }
+        )
+    }
 
     private var sliderValue: Binding<Double> {
         Binding(
@@ -59,11 +72,19 @@ struct GeneralSettings: View {
                 }
             }
             Section {
-                Picker("Check every", selection: $settings.pollInterval) {
-                    ForEach(SettingsStore.pollIntervalChoices, id: \.self) { seconds in
-                        Text("\(Int(seconds)) s").tag(seconds)
+                VStack(alignment: .leading) {
+                    let pace = Self.paces[Int(paceValue.wrappedValue)]
+                    Text("Sniffing: \(pace.name)\(Text(optionKey.isOptionDown ? " · every \(Int(pace.seconds)) s" : "").foregroundStyle(.secondary))")
+                        .font(.headline)
+                    Slider(value: paceValue, in: 0...Double(Self.paces.count - 1), step: 1) {
+                        EmptyView()
+                    } minimumValueLabel: {
+                        Text(Self.paces[0].name)
+                    } maximumValueLabel: {
+                        Text(Self.paces[Self.paces.count - 1].name)
                     }
                 }
+                .help("Hold ⌥ to see seconds")
                 Stepper("Rows shown in popover: \(settings.rowsShown)", value: $settings.rowsShown, in: SettingsStore.rowsShownRange)
                 Toggle("Mute bark", isOn: $settings.soundMuted)
                 Toggle("Launch at login", isOn: $launchAtLogin)
@@ -88,6 +109,8 @@ struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { optionKey.start() }
+        .onDisappear { optionKey.stop() }
         .background(WindowReader { host.window = $0 })
         // The user may have approved (or removed) the login item in System Settings meanwhile.
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in

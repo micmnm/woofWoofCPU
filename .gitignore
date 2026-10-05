@@ -31,3 +31,6 @@ bin/
 
 # Personal Claude Code settings
 .claude/settings.local.json
+
+# Local scratch
+tmp/

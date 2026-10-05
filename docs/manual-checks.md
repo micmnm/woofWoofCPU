@@ -26,7 +26,7 @@ Still to check by hand:
 6. `bin/miawMiawCPU mem --gb 8 --for 6m` on Paranoid: memory bark line.
 7. Switch skins (Symbol, Pixel symbol, Pixel, Shiba): menu bar dog, popover portrait and in-app icon change; check light and dark menu bars.
 8. Pause 30 min from the popover footer: dog naps, header says "Off duty until …"; Resume works; Mute silences barks.
-9. Settings → Check every 30 s: detection gets coarser, bark timing stays in seconds.
+9. Settings → Sniffing on Snoozy (hold ⌥: "every 30 s"): detection gets coarser, bark timing stays in seconds.
 10. Leave the app idle 5 min: Activity Monitor shows < 1 % CPU.
 
 ## Open questions
