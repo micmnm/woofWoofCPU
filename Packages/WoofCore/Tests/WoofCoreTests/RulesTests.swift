@@ -21,6 +21,16 @@ import Testing
         #expect(limits.thresholdValue(for: .cpu, physicalMemory: 16 * gb) == 100)
     }
 
+    @Test func bowlsScaleOnlyTheMemoryThreshold() {
+        let limits = Sensitivity.balanced.limits
+        #expect(limits.fed(.regular) == limits)
+        #expect(abs(limits.fed(.big).memory.threshold - 0.30) < 1e-9)
+        #expect(limits.fed(.big).memory.window == 300)
+        #expect(limits.fed(.huge).memory.threshold == 0.40)
+        #expect(limits.fed(.huge).cpu == limits.cpu)
+        #expect(limits.fed(.bottomless).thresholdValue(for: .memory, physicalMemory: 16 * gb) == .infinity)
+    }
+
     @Test func customLimitsOverridePreset() {
         let custom = Limits(cpu: Limit(threshold: 42, window: 7), memory: Limit(threshold: 0.5, window: 9))
         #expect(LimitsSetting.custom(custom).limits == custom)
@@ -96,6 +106,25 @@ import Testing
         let hog = entity("hog", memory: 9 * gb) // > 50% of 16 GB
         let breaches = tracker.update(entities: [hog], limits: limits, physicalMemory: ram, now: 0)
         #expect(breaches.map(\.key.resource) == [.memory])
+    }
+
+    @Test func bowlRaisesOnlyThatEntitysMemoryLimit() {
+        var tracker = BreachTracker()
+        let fed = entity("fed", memory: 9 * gb) // over 8 GB, under the Big bowl's 12 GB
+        let hungry = entity("hungry", memory: 9 * gb)
+        let breaches = tracker.update(
+            entities: [fed, hungry], limits: limits, bowls: [fed.key: .big], physicalMemory: ram, now: 0
+        )
+        #expect(breaches.map(\.key.entity) == [hungry.key])
+    }
+
+    @Test func bottomlessBowlStillWatchesCPU() {
+        var tracker = BreachTracker()
+        let hog = entity("hog", cpu: 150, memory: 15 * gb)
+        let breaches = tracker.update(
+            entities: [hog], limits: limits, bowls: [hog.key: .bottomless], physicalMemory: ram, now: 0
+        )
+        #expect(breaches.map(\.key.resource) == [.cpu])
     }
 
     @Test func resetForgetsRunningBreaches() {

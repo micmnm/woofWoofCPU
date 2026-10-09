@@ -23,6 +23,23 @@ enum Formatting {
         return "limit \(value(threshold, for: resource)) for \(duration(limits[resource].window))"
     }
 
+    /// Dog words normally; the memory limit it allows while ⌥ is held.
+    static func bowl(_ bowl: Bowl, shared limits: Limits, technical: Bool) -> String {
+        let detail: String
+        if technical {
+            let bytes = limits.fed(bowl).thresholdValue(for: .memory, physicalMemory: SystemInfo.physicalMemory)
+            detail = bytes.isFinite ? "up to \(value(bytes, for: .memory))" : "no memory limit"
+        } else {
+            switch bowl {
+            case .regular: return bowl.displayName
+            case .big: detail = "a bit more"
+            case .huge: detail = "lots more"
+            case .bottomless: detail = "never mind memory"
+            }
+        }
+        return "\(bowl.displayName) — \(detail)"
+    }
+
     private static func durationFormatter(_ units: NSCalendar.Unit) -> DateComponentsFormatter {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = units

@@ -69,7 +69,6 @@ final class AppCoordinator {
     }
 
     var skin: any Skin { SkinRegistry.skin(id: settings.skinID) }
-    var limits: Limits { settings.limits }
 
     // MARK: Loop
 
@@ -111,6 +110,7 @@ final class AppCoordinator {
         let step = pipeline.step(
             entities: sampled,
             limits: settings.limits,
+            bowls: settings.bowls,
             physicalMemory: SystemInfo.physicalMemory,
             isMuted: { [settings] key in settings.isMuted(key, now: date) },
             paused: settings.isPaused(now: date),
@@ -270,6 +270,17 @@ final class AppCoordinator {
 
     func alwaysIgnore(_ entity: Entity) {
         settings.alwaysIgnore(entity.key)
+        reevaluate()
+    }
+
+    /// A bowl that now fits quiets the memory bark at once; the tracker would only drop it a few ticks later.
+    /// One still too small keeps barking.
+    func setBowl(_ bowl: Bowl, for key: EntityKey) {
+        settings.setBowl(bowl, for: key)
+        let limit = settings.limits(for: key).thresholdValue(for: .memory, physicalMemory: SystemInfo.physicalMemory)
+        for breach in breaches where breach.key == BreachKey(entity: key, resource: .memory) && breach.lastValue <= limit {
+            pipeline.engine.ignore(breachID: breach.id)
+        }
         reevaluate()
     }
 

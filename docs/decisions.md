@@ -12,6 +12,7 @@ Product and engineering decisions made while building v1 (2026-10-01 – 2026-10
 - Limits via a Chill ↔ Paranoid slider plus Advanced numbers (memory shown in GB). Polling interval configurable: 2 / 5 / 10 / 30 s, default 5 s.
 - Popover lists the top N rows (default 5) with "+N more…"; clicking the dog anytime shows the live list. Launch at login and Pause watching are in v1.
 - Skins: Symbol dog (SF Symbols dog + mood badge, default), Pixel symbol dog (same art as pixel art), the original Pixel dog, Shiba. Mood badges: napping = outline dog + zzz, sniffing = ?, growling = orange !!, barking = red dog + sound waves, sulking = dog turned away + rain cloud, proud = heart.
+- Per-app memory allowance as a "Bowl" submenu in the row's ⋯ menu (Regular / Big / Huge / Bottomless), saved per app; chosen over a Settings slider tab and an "It needs this much" bark button. Memory only. Plain dog words, the GB limits appear while ⌥ is held. Settings' Ignore list tab became Exceptions and lists the bowls.
 - Real bark sounds (CC BY-SA 3.0 recording, see README credits).
 - `miawMiawCPU`: a CLI stress toy with delays, repeat cycles and ramp/spike patterns.
 
@@ -27,6 +28,8 @@ Product and engineering decisions made while building v1 (2026-10-01 – 2026-10
 - Pixel symbol dog frames carry a 1× representation (27×18 grid) and a 2× one (54×36 grid); its portraits use the 54×36 grid at 1-pt cells so badges survive. Smooth skins scale portraits with interpolation, pixel skins without.
 - The app icon is the smooth symbol dog on a cream→orange rounded square; the in-app icon follows the selected skin; the Finder icon is never rewritten at runtime (it would break the code signature).
 - History was rewritten to the personal identity (micmnm@gmail.com) before the first push; the repo uses `gh` credentials for GitHub.
+
+- Bowls are factors of the shared memory limit (1.5×, 2×, none), not absolute GB, so they follow the sensitivity slider. Picking a bowl the app now fits under mutes the running memory breach immediately (as Ignore); otherwise the breach would linger for 3 calm ticks.
 
 ## Explicitly skipped for now (user decision)
 

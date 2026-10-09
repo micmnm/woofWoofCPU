@@ -74,7 +74,7 @@ struct PopoverView: View {
             return until == .distantFuture ? "Off duty until you resume" : "Off duty until \(until.formatted(date: .omitted, time: .shortened))"
         }
         guard let top = coordinator.headlineEntity() else { return nil }
-        return Formatting.limit(coordinator.limits, top.breach.key.resource)
+        return Formatting.limit(coordinator.settings.limits(for: top.entity.key), top.breach.key.resource)
     }
 
     // MARK: List

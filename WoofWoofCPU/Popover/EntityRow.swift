@@ -33,7 +33,7 @@ struct EntityRow: View {
                 Spacer(minLength: 4)
                 Sparkline(
                     values: coordinator.series(for: entity.key, resource: resource),
-                    limit: coordinator.limits.thresholdValue(for: resource, physicalMemory: SystemInfo.physicalMemory),
+                    limit: coordinator.settings.limits(for: entity.key).thresholdValue(for: resource, physicalMemory: SystemInfo.physicalMemory),
                     color: alerting ? .red : .accentColor
                 )
                 .frame(width: 60, height: 18)
@@ -47,6 +47,10 @@ struct EntityRow: View {
                     Divider()
                     Button("Ignore this time") { coordinator.ignore(entity) }
                     Button("Always ignore") { coordinator.alwaysIgnore(entity) }
+                    Divider()
+                    Menu("Bowl") {
+                        ForEach(Bowl.allCases, id: \.self) { bowlItem($0) }
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -69,8 +73,30 @@ struct EntityRow: View {
         .background(alerting ? Color.red.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 6))
     }
 
+    /// The ⌥ poll timer doesn't run while a menu is tracking, so on macOS 15+ native alternate items
+    /// swap the labels live; macOS 14 only sees an ⌥ held when the menu opened.
+    @ViewBuilder private func bowlItem(_ bowl: Bowl) -> some View {
+        if #available(macOS 15, *) {
+            bowlToggle(bowl, technical: false).modifierKeyAlternate(.option) { bowlToggle(bowl, technical: true) }
+        } else {
+            bowlToggle(bowl, technical: optionDown)
+        }
+    }
+
+    private func bowlToggle(_ bowl: Bowl, technical: Bool) -> some View {
+        Toggle(
+            Formatting.bowl(bowl, shared: coordinator.settings.limits, technical: technical),
+            isOn: Binding(
+                get: { coordinator.settings.bowl(for: entity.key) == bowl },
+                set: { _ in coordinator.setBowl(bowl, for: entity.key) }
+            )
+        )
+    }
+
     private var subtitle: String {
-        let value = Formatting.value(entity.value(for: resource), for: resource)
+        var value = Formatting.value(entity.value(for: resource), for: resource)
+        let bowl = coordinator.settings.bowl(for: entity.key)
+        if resource == .memory, bowl != .regular { value += " · \(bowl.displayName) bowl" }
         guard let breach else { return value }
         return "\(value) · over for \(Formatting.duration(SystemInfo.uptime - breach.since))"
     }

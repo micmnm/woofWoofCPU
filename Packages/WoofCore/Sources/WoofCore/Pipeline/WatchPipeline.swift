@@ -18,6 +18,7 @@ public struct WatchPipeline: Sendable {
     public mutating func step(
         entities: [Entity],
         limits: Limits,
+        bowls: [EntityKey: Bowl] = [:],
         physicalMemory: UInt64,
         isMuted: (EntityKey) -> Bool,
         paused: Bool,
@@ -28,7 +29,7 @@ public struct WatchPipeline: Sendable {
         if paused { tracker.reset() }
         let breaches = paused
             ? []
-            : tracker.update(entities: entities, limits: limits, physicalMemory: physicalMemory, now: now)
+            : tracker.update(entities: entities, limits: limits, bowls: bowls, physicalMemory: physicalMemory, now: now)
         lastBreaches = breaches
         let alerts = engine.evaluate(breaches: breaches, isMuted: isMuted, paused: paused, now: now)
         return Step(mood: engine.mood, breaches: breaches, newAlerts: alerts)

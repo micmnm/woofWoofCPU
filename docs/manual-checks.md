@@ -21,13 +21,14 @@ Still to check by hand:
 1. `bin/miawMiawCPU demo bark`: sniff (≈ immediately), growl (≈ half the window), red barking dog + bark sound; reminder barks at +10/+30/+90 s; no popover opens by itself.
 2. Click the barking dog: popover in alert mode, culprit first. Hold ⌥: Quit turns red "Kill"; click it → the dog is proud (heart) ~10 s, then naps.
 3. Bark again, then press Esc: the dog sulks (turned away + rain cloud), no more barks for that episode.
-4. Snooze 15 min on a barking row: back to napping; Settings → Ignore list shows the snooze; cancel it there.
+4. Snooze 15 min on a barking row: back to napping; Settings → Exceptions shows the snooze; cancel it there.
 5. Click the dog with a browser open: it is one row that expands to its helpers; quit a single helper.
 6. `bin/miawMiawCPU mem --gb 8 --for 6m` on Paranoid: memory bark line.
 7. Switch skins (Symbol, Pixel symbol, Pixel, Shiba): menu bar dog, popover portrait and in-app icon change; check light and dark menu bars.
 8. Pause 30 min from the popover footer: dog naps, header says "Off duty until …"; Resume works; Mute silences barks.
 9. Settings → Sniffing on Snoozy (hold ⌥: "every 30 s"): detection gets coarser, bark timing stays in seconds.
-10. Leave the app idle 5 min: Activity Monitor shows < 1 % CPU.
+10. `bin/miawMiawCPU mem --gb 8 --for 6m` on Paranoid until it barks, then ⋯ → Bowl → Huge on that row: the dog calms at once, the subtitle reads "· Huge bowl" and the dashed line moves up. Open ⋯ → Bowl, then press and release ⌥: the bowls switch to "up to … GB" and back while the menu stays open. Settings → Exceptions lists it; set it back to Regular to remove it.
+11. Leave the app idle 5 min: Activity Monitor shows < 1 % CPU.
 
 ## Open questions
 

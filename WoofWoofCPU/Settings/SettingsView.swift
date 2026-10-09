@@ -9,7 +9,7 @@ struct SettingsView: View {
         TabView {
             GeneralSettings(settings: settings).tabItem { Label("General", systemImage: "gearshape") }
             DogSettings(settings: settings).tabItem { Label("Dog", systemImage: "pawprint") }
-            IgnoreSettings(settings: settings).tabItem { Label("Ignore list", systemImage: "eye.slash") }
+            ExceptionSettings(settings: settings).tabItem { Label("Exceptions", systemImage: "eye.slash") }
         }
         .padding(20)
         .frame(width: 480, height: 380)
@@ -218,11 +218,29 @@ struct DogSettings: View {
     }
 }
 
-struct IgnoreSettings: View {
+struct ExceptionSettings: View {
     let settings: SettingsStore
+    @State private var optionKey = OptionKeyMonitor()
 
     var body: some View {
         Form {
+            Section("Bigger bowls") {
+                if settings.bowls.isEmpty {
+                    Text("Every app eats from the regular bowl. Pick a bigger one from an app's ⋯ menu.")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(settings.bowls.keys.sorted(by: { label($0) < label($1) }), id: \.self) { key in
+                    Picker(label(key), selection: Binding(
+                        get: { settings.bowl(for: key) },
+                        set: { settings.setBowl($0, for: key) }
+                    )) {
+                        ForEach(Bowl.allCases, id: \.self) { bowl in
+                            Text(Formatting.bowl(bowl, shared: settings.limits, technical: optionKey.isOptionDown)).tag(bowl)
+                        }
+                    }
+                }
+            }
+            .help("Hold ⌥ to see memory limits")
             Section("Always ignored") {
                 if settings.ignoreList.isEmpty {
                     Text("Nothing ignored yet.").foregroundStyle(.secondary)
@@ -250,6 +268,8 @@ struct IgnoreSettings: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { optionKey.start() }
+        .onDisappear { optionKey.stop() }
     }
 
     private func label(_ key: EntityKey) -> String {

@@ -35,6 +35,30 @@ public struct Limits: Codable, Equatable, Sendable {
         case .memory: memory.threshold * Double(physicalMemory)
         }
     }
+
+    /// These limits for an app given a bigger bowl; only memory changes.
+    public func fed(_ bowl: Bowl) -> Limits {
+        var limits = self
+        limits.memory.threshold *= bowl.factor
+        return limits
+    }
+}
+
+/// How much more memory than the shared limit one app may use before the dog minds.
+public enum Bowl: String, Codable, CaseIterable, Sendable {
+    case regular, big, huge, bottomless
+
+    /// Relative to the shared limit, so bowls follow the sensitivity slider.
+    public var factor: Double {
+        switch self {
+        case .regular: 1
+        case .big: 1.5
+        case .huge: 2
+        case .bottomless: .infinity
+        }
+    }
+
+    public var displayName: String { rawValue.capitalized }
 }
 
 public enum Sensitivity: Int, Codable, CaseIterable, Sendable {

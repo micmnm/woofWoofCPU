@@ -30,6 +30,7 @@ Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors 
 - Bark sound (with mute).
 - Sensitivity slider (Chill ↔ Paranoid) plus an Advanced section for exact numbers.
 - Snooze, Ignore, Always ignore (an editable ignore list).
+- A bigger memory **bowl** per app, for apps that legitimately need more memory.
 - Click dog → live top list (mini Activity Monitor).
 - Launch at login, pause watching.
 - Four skins: **Symbol dog** (default), **Pixel symbol dog**, **Pixel** and **Shiba**; switchable in Settings.
@@ -63,7 +64,7 @@ woofWoofCPU/
 │   ├── Sources/WoofCore/
 │   │   ├── Sampling/               # ProcessSampler, ProcessSnapshot, libproc wrappers
 │   │   ├── Grouping/               # AppGrouper, Entity
-│   │   ├── Rules/                  # Sensitivity, Limits, BreachTracker
+│   │   ├── Rules/                  # Sensitivity, Limits, Bowl, BreachTracker
 │   │   ├── Mood/                   # DogMood, MoodEngine
 │   │   ├── Actions/                # ProcessActions (quit/kill), ActionPolicy
 │   │   └── Settings/               # SettingsStore, IgnoreList, Snoozes
@@ -153,7 +154,16 @@ The **sensitivity slider** has five stops that set all limits at once. Memory is
 
 **Advanced** shows the four numbers for the current stop and allows editing them. Editing switches the slider label to **Custom**; moving the slider again discards the custom values.
 
-**BreachTracker** applies to each (entity, resource) pair:
+**Bowls** let one entity use more memory than the shared limit. Its memory limit is the shared one times the bowl's factor, so bowls follow the slider and Advanced edits; CPU limits and all windows are unchanged.
+
+| Bowl | Plain label | Factor | With ⌥ held (Balanced, 64 GB) |
+|---|---|---|---|
+| Regular (default) | Regular | 1× | up to 12.8 GB |
+| Big | a bit more | 1.5× | up to 19.2 GB |
+| Huge | lots more | 2× | up to 25.6 GB |
+| Bottomless | never mind memory | no memory limit | no memory limit |
+
+**BreachTracker** applies to each (entity, resource) pair, using the entity's own memory limit:
 
 - A breach **starts** when the value goes above the limit, and records `since = now`.
 - It **continues** while the value stays above 90% of the limit. This hysteresis band stops the dog flapping around the threshold.
@@ -191,6 +201,9 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 | **Snooze** | menu: 15 min · 1 h · until tomorrow (next 06:00) | same (keyed by identity) |
 | **Ignore** | mutes the current breach | same |
 | **Always ignore** | adds the bundle ID to the ignore list | adds the executable path |
+| **Bowl** | submenu: Regular · Big · Huge · Bottomless, keyed by bundle ID | same, keyed by executable path |
+
+- Picking a bowl that the current memory value now fits under mutes that memory breach at once, as Ignore would; a bowl still too small keeps barking.
 
 - If the polite app quit isn't available (no running `NSRunningApplication` for the main PID), Quit falls back to `SIGTERM` for every member.
 - Quit/Kill are disabled, with a tooltip, when the process belongs to another user or is root (`uid ≠ getuid()`). Elevated killing is out of v1.
@@ -230,7 +243,9 @@ A regular window hosting SwiftUI, with three tabs:
 
 - **General:** sensitivity slider with an Advanced disclosure, check interval, rows shown (N), launch at login (`SMAppService.mainApp`), mute bark.
 - **Dog:** skin picker with a live preview of all six moods.
-- **Ignore list:** a table of always-ignored apps and processes with remove buttons, and the current snoozes with their expiry and a cancel button.
+- **Exceptions:** the bigger bowls, each with a bowl picker (Regular removes it; hold ⌥ for GB); the always-ignored apps and processes with remove buttons; and the current snoozes with their expiry and a cancel button.
+
+Bowl labels are dog words; while ⌥ is held they show the memory limit instead. In the ⋯ menu these are native alternate items (`modifierKeyAlternate`, macOS 15+) that swap live while the menu is open; on macOS 14 only an ⌥ held when the menu opens counts. A row whose bowl is not Regular adds "· Big bowl" to its memory subtitle.
 
 ### 5.4 Skins
 
@@ -278,6 +293,7 @@ Stored in `UserDefaults`, with Codable JSON for structured values:
 - launch at login (mirrored from `SMAppService` status, not stored independently)
 - ignore list: `[EntityKey]`
 - snoozes: `[EntityKey: Date]` — expired entries are pruned on load
+- bowls: `[EntityKey: Bowl]` — Regular is never stored
 - pause-until date
 
 ## 7. Error handling

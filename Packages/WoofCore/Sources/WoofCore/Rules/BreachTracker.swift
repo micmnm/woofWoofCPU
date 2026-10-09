@@ -42,16 +42,18 @@ public struct BreachTracker: Equatable, Sendable {
     public mutating func update(
         entities: [Entity],
         limits: Limits,
+        bowls: [EntityKey: Bowl] = [:],
         physicalMemory: UInt64,
         now: TimeInterval
     ) -> [Breach] {
         var present = Set<BreachKey>()
         for entity in entities {
+            let entityLimits = limits.fed(bowls[entity.key] ?? .regular)
             for resource in Resource.allCases {
                 let key = BreachKey(entity: entity.key, resource: resource)
                 present.insert(key)
                 let value = entity.value(for: resource)
-                let threshold = limits.thresholdValue(for: resource, physicalMemory: physicalMemory)
+                let threshold = entityLimits.thresholdValue(for: resource, physicalMemory: physicalMemory)
                 if var state = states[key] {
                     if value > threshold * Self.hysteresis {
                         state.calmTicks = 0

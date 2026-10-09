@@ -50,6 +50,8 @@ public final class SettingsStore {
     public var pollInterval: TimeInterval { didSet { defaults.set(pollInterval, forKey: Keys.pollInterval) } }
     public private(set) var ignoreList: Set<EntityKey> { didSet { save(ignoreList, Keys.ignore) } }
     public private(set) var snoozes: [EntityKey: Date] { didSet { save(snoozes, Keys.snoozes) } }
+    /// Only non-regular bowls are stored.
+    public private(set) var bowls: [EntityKey: Bowl] { didSet { save(bowls, Keys.bowls) } }
     public var pausedUntil: Date? { didSet { save(pausedUntil, Keys.paused) } }
 
     public init(defaults: UserDefaults = .standard, now: Date = Date()) {
@@ -62,10 +64,23 @@ public final class SettingsStore {
         pollInterval = Self.nearestPollInterval(defaults.object(forKey: Keys.pollInterval) as? Double)
         ignoreList = Self.load(Set<EntityKey>.self, Keys.ignore, defaults) ?? []
         snoozes = (Self.load([EntityKey: Date].self, Keys.snoozes, defaults) ?? [:]).filter { $0.value > now }
+        bowls = Self.load([EntityKey: Bowl].self, Keys.bowls, defaults) ?? [:]
         pausedUntil = Self.load(Date?.self, Keys.paused, defaults) ?? nil
     }
 
     public var limits: Limits { limitsSetting.limits }
+
+    public func limits(for key: EntityKey) -> Limits {
+        limits.fed(bowl(for: key))
+    }
+
+    public func bowl(for key: EntityKey) -> Bowl {
+        bowls[key] ?? .regular
+    }
+
+    public func setBowl(_ bowl: Bowl, for key: EntityKey) {
+        bowls[key] = bowl == .regular ? nil : bowl
+    }
 
     public func isMuted(_ key: EntityKey, now: Date) -> Bool {
         if ignoreList.contains(key) { return true }
@@ -118,6 +133,7 @@ public final class SettingsStore {
         static let pollInterval = "pollInterval"
         static let ignore = "ignoreList"
         static let snoozes = "snoozes"
+        static let bowls = "bowls"
         static let paused = "pausedUntil"
     }
 

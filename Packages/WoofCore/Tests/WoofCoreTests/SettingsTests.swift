@@ -37,14 +37,26 @@ import Testing
         store.soundMuted = true
         store.alwaysIgnore(key)
         store.snooze(.process(path: "/usr/bin/yes"), until: now.addingTimeInterval(60))
+        store.setBowl(.huge, for: key)
 
         let reloaded = SettingsStore(defaults: defaults, now: now)
+        #expect(reloaded.bowls == [key: .huge])
         #expect(reloaded.limitsSetting == .preset(.paranoid))
         #expect(reloaded.rowsShown == 7)
         #expect(reloaded.skinID == "shiba")
         #expect(reloaded.soundMuted)
         #expect(reloaded.ignoreList == [key])
         #expect(reloaded.snoozes.count == 1)
+    }
+
+    @Test func regularBowlIsNotStored() {
+        let store = SettingsStore(defaults: defaults, now: now)
+        store.setBowl(.big, for: key)
+        #expect(store.bowl(for: key) == .big)
+        #expect(store.limits(for: key) == store.limits.fed(.big))
+        store.setBowl(.regular, for: key)
+        #expect(store.bowls.isEmpty)
+        #expect(store.bowl(for: key) == .regular)
     }
 
     @Test func rowsShownIsClampedOnLoad() {
