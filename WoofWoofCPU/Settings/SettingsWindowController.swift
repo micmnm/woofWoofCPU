@@ -6,14 +6,16 @@ import WoofCore
 final class SettingsWindowController {
     private var window: NSWindow?
     private let settings: SettingsStore
+    private let forgetUsual: () -> Void
 
-    init(settings: SettingsStore) {
+    init(settings: SettingsStore, forgetUsual: @escaping () -> Void) {
         self.settings = settings
+        self.forgetUsual = forgetUsual
     }
 
     func show() {
         if window == nil {
-            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(settings: settings)))
+            let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(settings: settings, forgetUsual: forgetUsual)))
             window.title = "woofWoofCPU Settings"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false

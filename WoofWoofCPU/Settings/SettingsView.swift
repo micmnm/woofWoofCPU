@@ -4,12 +4,13 @@ import WoofCore
 
 struct SettingsView: View {
     let settings: SettingsStore
+    let forgetUsual: () -> Void
 
     var body: some View {
         TabView {
             GeneralSettings(settings: settings).tabItem { Label("General", systemImage: "gearshape") }
             DogSettings(settings: settings).tabItem { Label("Dog", systemImage: "pawprint") }
-            ExceptionSettings(settings: settings).tabItem { Label("Exceptions", systemImage: "eye.slash") }
+            ExceptionSettings(settings: settings, forgetUsual: forgetUsual).tabItem { Label("Exceptions", systemImage: "eye.slash") }
         }
         .padding(20)
         .frame(width: 480, height: 380)
@@ -67,7 +68,7 @@ struct GeneralSettings: View {
                 DisclosureGroup("Advanced") {
                     LimitField(title: "CPU above (%)", value: limitBinding(\.cpu.threshold, scale: 1, minShown: 5))
                     LimitField(title: "CPU for (minutes)", value: limitBinding(\.cpu.window, scale: 60, minShown: 0.5))
-                    LimitField(title: "Memory above (GB)", value: limitBinding(\.memory.threshold, scale: Self.fractionPerGB, minShown: 0.5, maxStored: 1))
+                    LimitField(title: "Memory above (GB)", value: limitBinding(\.memory.threshold, scale: Self.fractionPerGB, minShown: 0.25, maxStored: 1))
                     LimitField(title: "Memory for (minutes)", value: limitBinding(\.memory.window, scale: 60, minShown: 0.5))
                 }
             }
@@ -220,7 +221,9 @@ struct DogSettings: View {
 
 struct ExceptionSettings: View {
     let settings: SettingsStore
+    let forgetUsual: () -> Void
     @State private var optionKey = OptionKeyMonitor()
+    @State private var confirmingForget = false
 
     var body: some View {
         Form {
@@ -265,6 +268,14 @@ struct ExceptionSettings: View {
                         Button("Cancel") { settings.cancelSnooze(key) }
                     }
                 }
+            }
+            Section {
+                Button("Forget what's usual…") { confirmingForget = true }
+                    .confirmationDialog("Forget what's usual for every app?", isPresented: $confirmingForget) {
+                        Button("Forget", role: .destructive, action: forgetUsual)
+                    } message: {
+                        Text("The dog relearns each app's usual usage over the next few hours.")
+                    }
             }
         }
         .formStyle(.grouped)

@@ -7,6 +7,8 @@ struct PopoverView: View {
     var openSettings: () -> Void
 
     @State private var expanded: Set<EntityKey> = []
+    /// Runaway rows open by default; these are the ones the user closed.
+    @State private var collapsed: Set<EntityKey> = []
     @State private var showAll = false
     /// While the pointer is over the list, rows keep their order so clicks land on the intended row.
     @State private var frozenOrder: [EntityKey]?
@@ -49,19 +51,31 @@ struct PopoverView: View {
                 .frame(width: 64, height: 48)
             VStack(alignment: .leading, spacing: 2) {
                 Text(headline).font(.system(size: 13, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
+                if let line = Lines.strainLine(strain, machine: coordinator.machine) { Text(line).font(.system(size: 11)) }
                 if let subline { Text(subline).font(.system(size: 11)).foregroundStyle(.secondary) }
             }
         }
     }
 
+    /// Ticks stop while paused, so the last strain would be stale.
+    private var strain: Strain {
+        coordinator.settings.isPaused(now: Date()) ? Strain(memory: false, cpu: false) : coordinator.strain
+    }
+
     private var headline: String {
+        if coordinator.popoverMode == .list, coordinator.activeBreaches.isEmpty {
+            let resource: Resource = strain.memory ? .memory : .cpu
+            let busiest = coordinator.entities.max { $0.value(for: resource) < $1.value(for: resource) }
+            if let line = Lines.noCulpritLine(strain: strain, topApp: busiest?.displayName) { return line }
+        }
         let top = coordinator.headlineEntity()
         let resource = top?.breach.key.resource
         let value = top.map { Formatting.value($0.breach.lastValue, for: $0.breach.key.resource) } ?? ""
-        let duration = top.map { Formatting.duration(SystemInfo.uptime - $0.breach.since) } ?? ""
+        let duration = top.map { Formatting.duration($0.breach.overTime) } ?? ""
         return Lines.line(
             mood: coordinator.mood,
             resource: resource,
+            reason: top?.breach.reason,
             app: top?.entity.displayName,
             value: value,
             duration: duration,
@@ -99,10 +113,7 @@ struct PopoverView: View {
                             coordinator: coordinator,
                             entity: entity,
                             optionDown: optionKey.isOptionDown,
-                            expanded: Binding(
-                                get: { expanded.contains(entity.key) },
-                                set: { if $0 { expanded.insert(entity.key) } else { expanded.remove(entity.key) } }
-                            )
+                            expanded: isExpanded(entity)
                         )
                     }
                 }
@@ -125,6 +136,20 @@ struct PopoverView: View {
         .onHover { inside in
             frozenOrder = inside ? coordinator.sortedEntities.map(\.key) : nil
         }
+    }
+
+    private func isExpanded(_ entity: Entity) -> Binding<Bool> {
+        let runaway = entity.isApp && entity.members.count > 1 && coordinator.breach(for: entity.key)?.reason == .runaway
+        return Binding(
+            get: { runaway ? !collapsed.contains(entity.key) : expanded.contains(entity.key) },
+            set: { open in
+                if runaway {
+                    if open { collapsed.remove(entity.key) } else { collapsed.insert(entity.key) }
+                } else {
+                    if open { expanded.insert(entity.key) } else { expanded.remove(entity.key) }
+                }
+            }
+        )
     }
 
     // MARK: Footer

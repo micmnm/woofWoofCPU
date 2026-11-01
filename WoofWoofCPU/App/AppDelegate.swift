@@ -35,7 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { NSRunningApplication(processIdentifier: pid)?.terminate() ?? false }
         })
         coordinator = AppCoordinator(settings: settings, sampler: sampler, actions: ProcessActions(signaller: signaller))
-        settingsWindow = SettingsWindowController(settings: settings)
+        settingsWindow = SettingsWindowController(settings: settings) { [weak self] in self?.coordinator.forgetUsual() }
 
         status = StatusItemController()
         animator = DogAnimator(button: status.button, skin: coordinator.skin)
@@ -74,6 +74,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         observeSkin()
         coordinator.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        coordinator.saveUsual()
     }
 
     /// Ticks stop while paused, so a skin change reaches the dog and app icon on its own.

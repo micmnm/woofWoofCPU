@@ -31,6 +31,8 @@ enum SortResource: String, CaseIterable {
 @Observable
 final class AppCoordinator {
     static let politeQuitGrace: Duration = .seconds(5)
+    static let usualSaveInterval: TimeInterval = 300
+    static let usualForgetAfter: TimeInterval = 30 * 86_400
 
     let settings: SettingsStore
     private(set) var entities: [Entity] = []
@@ -38,6 +40,8 @@ final class AppCoordinator {
     /// `breaches` minus snoozed, always-ignored and Ignored ones; drives sorting and the headline.
     private(set) var activeBreaches: [Breach] = []
     private(set) var mood: DogMood = .napping
+    private(set) var machine: MachineState = .calm()
+    private(set) var strain = Strain(memory: false, cpu: false)
     private(set) var alertingKeys: Set<EntityKey> = []
     private(set) var rowStatus: [RowID: RowStatus] = [:]
     /// Alerting entities first, then by severity, then by the chosen resource; rebuilt once per change.
@@ -59,6 +63,10 @@ final class AppCoordinator {
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var samplerNeedsReset = false
+    @ObservationIgnored private var usual = UsualUsage()
+    @ObservationIgnored private let usualStore = UsualUsageStore(url: UsualUsageStore.defaultURL)
+    @ObservationIgnored private var lastTickUptime: TimeInterval?
+    @ObservationIgnored private var lastUsualSave: TimeInterval = 0
     @ObservationIgnored private let log = Logger(subsystem: "com.woofwoofcpu", category: "coordinator")
     let currentUID = getuid()
 
@@ -73,6 +81,9 @@ final class AppCoordinator {
     // MARK: Loop
 
     func start() {
+        usual = usualStore.load()
+        usual.prune(notSeenSince: Date().addingTimeInterval(-Self.usualForgetAfter))
+        lastUsualSave = SystemInfo.uptime
         observeSleepWake()
         startLoop()
     }
@@ -112,19 +123,44 @@ final class AppCoordinator {
             machine: machine,
             limits: settings.limits,
             bowls: settings.bowls,
-            usual: UsualUsage(),
+            usual: usual,
             isMuted: { [settings] key in settings.isMuted(key, now: date) },
             paused: settings.isPaused(now: date),
             now: now
         )
+        learnUsual(sampled, now: now, date: date)
+        if self.machine != machine { self.machine = machine }
         if entities != sampled { entities = sampled }
         pruneRowStatus(for: sampled)
         publish(step, date: date)
     }
 
+    /// Gaps (pause, sleep, a stalled tick) are longer than `maxElapsed`, so they are skipped.
+    private func learnUsual(_ sampled: [Entity], now: TimeInterval, date: Date) {
+        defer { lastTickUptime = now }
+        guard let last = lastTickUptime, !settings.isPaused(now: date) else { return }
+        usual.record(sampled, elapsed: now - last, maxElapsed: 3 * settings.pollInterval, at: date)
+        if now - lastUsualSave >= Self.usualSaveInterval { saveUsual() }
+    }
+
+    func saveUsual() {
+        lastUsualSave = SystemInfo.uptime
+        do {
+            try usualStore.save(usual)
+        } catch {
+            log.error("saving usual usage failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func forgetUsual() {
+        usual.forgetAll()
+        saveUsual()
+    }
+
     /// @Observable invalidates on every write, even an equal one, so unchanged values are not reassigned.
     private func publish(_ step: WatchPipeline.Step, date: Date) {
         if breaches != step.breaches { breaches = step.breaches }
+        if strain != step.strain { strain = step.strain }
         let engine = pipeline.engine
         let active = step.breaches.filter {
             !settings.isMuted($0.key.entity, now: date) && !engine.isIgnored($0.key)

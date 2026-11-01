@@ -33,7 +33,7 @@ struct EntityRow: View {
                 Spacer(minLength: 4)
                 Sparkline(
                     values: coordinator.series(for: entity.key, resource: resource),
-                    limit: coordinator.settings.limits(for: entity.key).thresholdValue(for: resource, physicalMemory: SystemInfo.physicalMemory),
+                    limit: sparklineLimit,
                     color: alerting ? .red : .accentColor
                 )
                 .frame(width: 60, height: 18)
@@ -98,7 +98,14 @@ struct EntityRow: View {
         let bowl = coordinator.settings.bowl(for: entity.key)
         if resource == .memory, bowl != .regular { value += " · \(bowl.displayName) bowl" }
         guard let breach else { return value }
-        return "\(value) · over for \(Formatting.duration(SystemInfo.uptime - breach.since))"
+        return "\(value) · over for \(Formatting.duration(breach.overTime))"
+    }
+
+    /// The bar this row is judged against right now; none while the Mac isn't strained on it.
+    private var sparklineLimit: Double? {
+        if resource == .cpu, breach?.reason == .runaway { return Judge.runawayCPU }
+        guard resource == .memory ? coordinator.strain.memory : coordinator.strain.cpu else { return nil }
+        return coordinator.settings.limits(for: entity.key).thresholdValue(for: resource, physicalMemory: SystemInfo.physicalMemory)
     }
 
     private var icon: Image {
