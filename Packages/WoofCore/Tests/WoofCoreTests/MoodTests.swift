@@ -4,11 +4,13 @@ import Testing
 @Suite struct MoodEngineTests {
     let key = BreachKey(entity: .process(path: "/usr/bin/yes"), resource: .cpu)
 
-    func breach(id: Int = 1, progress: Double, entity: EntityKey? = nil) -> Breach {
+    func breach(id: Int = 1, progress: Double, entity: EntityKey? = nil, isOver: Bool = true) -> Breach {
         Breach(
             id: id,
             key: entity.map { BreachKey(entity: $0, resource: .cpu) } ?? key,
             since: 0,
+            overTime: progress * 60,
+            isOver: isOver,
             progress: progress,
             lastValue: 150
         )
@@ -73,28 +75,67 @@ import Testing
         #expect(engine.mood == .proud)
     }
 
-    @Test func ignoreMutesOnlyThisEpisode() {
+    @Test func ignoreMutesTheKeyAcrossEpisodes() {
         var engine = MoodEngine()
         _ = eval(&engine, [breach(id: 1, progress: 1)])
-        engine.ignore(breachID: 1)
+        engine.ignore(key, now: 0)
         _ = eval(&engine, [breach(id: 1, progress: 1)], at: 2)
         #expect(engine.mood == .napping)
-        let alerts = eval(&engine, [breach(id: 2, progress: 1)], at: 4)
-        #expect(alerts.map(\.id) == [2])
-        #expect(engine.mood == .barking)
+        #expect(eval(&engine, [breach(id: 2, progress: 1)], at: 4).isEmpty)
+        #expect(engine.mood == .napping)
     }
 
-    @Test func isIgnoredTracksTheIgnoredEpisodeOnly() {
+    @Test func ignoreSurvivesANewEpisode() {
         var engine = MoodEngine()
-        _ = eval(&engine, [breach(id: 1, progress: 1), breach(id: 2, progress: 0.5, entity: .process(path: "/bin/cat"))])
-        #expect(!engine.isIgnored(breachID: 1))
-        engine.ignore(breachID: 1)
-        #expect(engine.isIgnored(breachID: 1))
-        #expect(!engine.isIgnored(breachID: 2))
-        _ = eval(&engine, [breach(id: 1, progress: 1)], at: 2)
-        #expect(engine.isIgnored(breachID: 1))
-        _ = eval(&engine, [], at: 4)
-        #expect(!engine.isIgnored(breachID: 1))
+        engine.ignore(key, now: 0)
+        _ = eval(&engine, [breach(id: 1, progress: 1)])
+        _ = eval(&engine, [], at: 2)
+        #expect(eval(&engine, [breach(id: 2, progress: 1)], at: 100).isEmpty)
+        #expect(engine.isIgnored(key))
+    }
+
+    @Test func ignoreExpiresAfterTenCalmMinutes() {
+        var engine = MoodEngine()
+        engine.ignore(key, now: 0)
+        _ = eval(&engine, [], at: 300)
+        #expect(engine.isIgnored(key))
+        #expect(eval(&engine, [breach(id: 2, progress: 1)], at: 601).map(\.id) == [2])
+        #expect(!engine.isIgnored(key))
+    }
+
+    @Test func ignoreIsRefreshedWhileTheKeyKeepsBreaching() {
+        var engine = MoodEngine()
+        engine.ignore(key, now: 0)
+        for t in stride(from: 2.0, through: 1200, by: 2) { _ = eval(&engine, [breach(progress: 1)], at: t) }
+        #expect(engine.isIgnored(key))
+    }
+
+    @Test func ignoreSurvivesReset() {
+        var engine = MoodEngine()
+        engine.ignore(key, now: 0)
+        engine.reset()
+        #expect(engine.isIgnored(key))
+    }
+
+    @Test func ignoreSurvivesPause() {
+        var engine = MoodEngine()
+        engine.ignore(key, now: 0)
+        for t in stride(from: 2.0, through: 3602, by: 300) { _ = eval(&engine, [], at: t, paused: true) }
+        _ = eval(&engine, [], at: 3604)
+        #expect(engine.isIgnored(key))
+    }
+
+    @Test func isIgnoredIsPerKey() {
+        var engine = MoodEngine()
+        engine.ignore(key, now: 0)
+        #expect(!engine.isIgnored(BreachKey(entity: .process(path: "/bin/cat"), resource: .cpu)))
+        #expect(!engine.isIgnored(BreachKey(entity: key.entity, resource: .memory)))
+    }
+
+    @Test func alertNeedsIsOver() {
+        var engine = MoodEngine()
+        #expect(eval(&engine, [breach(progress: 1, isOver: false)]).isEmpty)
+        #expect(eval(&engine, [breach(progress: 1)], at: 2).map(\.id) == [1])
     }
 
     @Test func snoozedOrIgnoredEntitiesNeverBarkAndAreNotProud() {
@@ -117,10 +158,10 @@ import Testing
         #expect(engine.mood == .barking)
     }
 
-    @Test func ignoredBreachNeverAlertsAgainThisEpisode() {
+    @Test func ignoredBreachNeverAlertsAgain() {
         var engine = MoodEngine()
         _ = eval(&engine, [breach(progress: 1)])
-        engine.ignore(breachID: 1)
+        engine.ignore(key, now: 0)
         #expect(eval(&engine, [breach(progress: 1)], at: 2).isEmpty)
         #expect(eval(&engine, [breach(progress: 1)], at: 4, muted: [key.entity]).isEmpty)
         #expect(eval(&engine, [breach(progress: 1)], at: 6).isEmpty)

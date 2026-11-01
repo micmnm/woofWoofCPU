@@ -12,6 +12,7 @@ public struct WatchPipeline: Sendable {
     public var engine = MoodEngine()
     public private(set) var history = UsageHistory()
     private var lastBreaches: [Breach] = []
+    private var mutedLastTick: Set<EntityKey> = []
 
     public init() {}
 
@@ -25,6 +26,9 @@ public struct WatchPipeline: Sendable {
         now: TimeInterval
     ) -> Step {
         history.record(entities, now: now)
+        let muted = Set(entities.map(\.key).filter(isMuted))
+        for key in mutedLastTick.subtracting(muted) { tracker.restart(entity: key, now: now) }
+        mutedLastTick = muted
         // Pausing drops running timers so resuming never barks instantly.
         if paused { tracker.reset() }
         let breaches = paused
@@ -42,6 +46,14 @@ public struct WatchPipeline: Sendable {
             tracker.reset()
             lastBreaches = []
         }
+        let keys = Set(lastBreaches.map(\.key.entity))
+        let muted = keys.filter(isMuted)
+        let unmuted = mutedLastTick.intersection(keys).subtracting(muted)
+        for key in unmuted { tracker.restart(entity: key, now: now) }
+        if !unmuted.isEmpty {
+            lastBreaches = lastBreaches.map { unmuted.contains($0.key.entity) ? $0.restarted() : $0 }
+        }
+        mutedLastTick = mutedLastTick.subtracting(keys).union(muted)
         let alerts = engine.evaluate(breaches: lastBreaches, isMuted: isMuted, paused: paused, now: now)
         return Step(mood: engine.mood, breaches: lastBreaches, newAlerts: alerts)
     }
