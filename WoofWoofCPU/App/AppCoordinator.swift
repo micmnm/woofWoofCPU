@@ -126,7 +126,7 @@ final class AppCoordinator {
         if breaches != step.breaches { breaches = step.breaches }
         let engine = pipeline.engine
         let active = step.breaches.filter {
-            !settings.isMuted($0.key.entity, now: date) && !engine.isIgnored(breachID: $0.id)
+            !settings.isMuted($0.key.entity, now: date) && !engine.isIgnored($0.key)
         }
         if activeBreaches != active { activeBreaches = active }
         let open = engine.openAlertIDs
@@ -263,7 +263,7 @@ final class AppCoordinator {
 
     func ignore(_ entity: Entity) {
         for breach in breaches where breach.key.entity == entity.key {
-            pipeline.engine.ignore(breachID: breach.id)
+            pipeline.engine.ignore(breach.key, now: SystemInfo.uptime)
         }
         reevaluate()
     }
@@ -279,7 +279,7 @@ final class AppCoordinator {
         settings.setBowl(bowl, for: key)
         let limit = settings.limits(for: key).thresholdValue(for: .memory, physicalMemory: SystemInfo.physicalMemory)
         for breach in breaches where breach.key == BreachKey(entity: key, resource: .memory) && breach.lastValue <= limit {
-            pipeline.engine.ignore(breachID: breach.id)
+            pipeline.engine.ignore(breach.key, now: SystemInfo.uptime)
         }
         reevaluate()
     }

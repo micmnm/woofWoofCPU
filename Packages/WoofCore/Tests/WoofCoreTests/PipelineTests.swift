@@ -50,7 +50,7 @@ import Testing
         #expect(moods == [.sniffing, .growling, .barking])
         #expect(alerts == 1)
 
-        for t in stride(from: 82.0, through: 86, by: 2) { _ = run(&pipeline, cpu: 0, at: t) }
+        for t in stride(from: 82.0, through: 144, by: 2) { _ = run(&pipeline, cpu: 0, at: t) }
         #expect(pipeline.engine.mood == .proud)
     }
 
@@ -112,6 +112,38 @@ import Testing
         #expect(paused.mood == .napping)
         #expect(paused.breaches.isEmpty)
         #expect(run(&pipeline, cpu: 120, at: 600).breaches.first?.progress == 0)
+    }
+
+    @Test func snoozeEndRestartsTheWindow() {
+        var pipeline = WatchPipeline()
+        let key = EntityKey.process(path: "/usr/bin/yes")
+        for t in stride(from: 0.0, through: 60, by: 2) { _ = run(&pipeline, cpu: 120, at: t, muted: [key]) }
+        let unmuted = run(&pipeline, cpu: 120, at: 62)
+        #expect(unmuted.newAlerts.isEmpty)
+        #expect(unmuted.breaches.first?.progress == 0)
+        var alerts = 0
+        for t in stride(from: 64.0, through: 122, by: 2) { alerts += run(&pipeline, cpu: 120, at: t).newAlerts.count }
+        #expect(alerts == 1)
+    }
+
+    @Test func reevaluateRestartsTheWindowWhenAMuteEnds() {
+        var pipeline = WatchPipeline()
+        let key = EntityKey.process(path: "/usr/bin/yes")
+        for t in stride(from: 0.0, through: 60, by: 2) { _ = run(&pipeline, cpu: 120, at: t) }
+        _ = pipeline.reevaluate(isMuted: { $0 == key }, paused: false, now: 61)
+        let step = pipeline.reevaluate(isMuted: { _ in false }, paused: false, now: 62)
+        #expect(step.newAlerts.isEmpty)
+        #expect(step.breaches.first?.progress == 0)
+        #expect(run(&pipeline, cpu: 120, at: 64).breaches.first?.overTime == 2)
+    }
+
+    @Test func wakeResetKeepsIgnore() {
+        var pipeline = WatchPipeline()
+        let key = BreachKey(entity: .process(path: "/usr/bin/yes"), resource: .cpu)
+        _ = run(&pipeline, cpu: 120, at: 0)
+        pipeline.engine.ignore(key, now: 0)
+        pipeline.resetTimers()
+        #expect(pipeline.engine.isIgnored(key))
     }
 
     @Test func historyIsRecordedEvenWhenPaused() {

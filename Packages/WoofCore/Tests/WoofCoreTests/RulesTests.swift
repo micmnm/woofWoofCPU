@@ -67,12 +67,42 @@ import Testing
         }
     }
 
-    @Test func breachEndsAfterThreeCalmTicks() {
+    @Test func breachEndsAfterSixtySecondsCalmAtTwoSecondTicks() {
         var tracker = BreachTracker()
         _ = tick(&tracker, cpu: 150, at: 0)
-        #expect(tick(&tracker, cpu: 10, at: 2).count == 1)
-        #expect(tick(&tracker, cpu: 10, at: 4).count == 1)
-        #expect(tick(&tracker, cpu: 10, at: 6).isEmpty)
+        for t in stride(from: 2.0, through: 60, by: 2) { #expect(tick(&tracker, cpu: 10, at: t).count == 1) }
+        #expect(tick(&tracker, cpu: 10, at: 62).isEmpty)
+    }
+
+    @Test func breachEndsAfterSixtySecondsCalmAtThirtySecondTicks() {
+        var tracker = BreachTracker()
+        _ = tick(&tracker, cpu: 150, at: 0)
+        #expect(tick(&tracker, cpu: 10, at: 30).count == 1)
+        #expect(tick(&tracker, cpu: 10, at: 60).count == 1)
+        #expect(tick(&tracker, cpu: 10, at: 90).isEmpty)
+    }
+
+    @Test func progressCountsOnlyTimeOver() {
+        var tracker = BreachTracker()
+        for t in stride(from: 0.0, through: 30, by: 2) { _ = tick(&tracker, cpu: 150, at: t) }
+        for t in stride(from: 32.0, through: 50, by: 2) {
+            let calm = tick(&tracker, cpu: 10, at: t)[0]
+            #expect(!calm.isOver)
+            #expect(calm.progress == 0.5)
+        }
+        let again = tick(&tracker, cpu: 150, at: 52)[0]
+        #expect(again.isOver)
+        #expect(again.progress == 32.0 / 60)
+        #expect(again.overTime == 32)
+    }
+
+    @Test func restartZeroesOverTime() {
+        var tracker = BreachTracker()
+        for t in stride(from: 0.0, through: 30, by: 2) { _ = tick(&tracker, cpu: 150, at: t) }
+        tracker.restart(entity: .process(path: "/usr/bin/yes"), now: 30)
+        let next = tick(&tracker, cpu: 150, at: 32)[0]
+        #expect(next.overTime == 2)
+        #expect(next.since == 0)
     }
 
     @Test func spikeShorterThanWindowNeverReachesFullProgress() {
@@ -90,8 +120,8 @@ import Testing
     @Test func newEpisodeGetsNewID() {
         var tracker = BreachTracker()
         let first = tick(&tracker, cpu: 150, at: 0)[0].id
-        for t in [2.0, 4, 6] { _ = tick(&tracker, cpu: 0, at: t) }
-        let second = tick(&tracker, cpu: 150, at: 8)[0].id
+        for t in stride(from: 2.0, through: 62, by: 2) { _ = tick(&tracker, cpu: 0, at: t) }
+        let second = tick(&tracker, cpu: 150, at: 64)[0].id
         #expect(first != second)
     }
 

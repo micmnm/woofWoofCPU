@@ -7,13 +7,16 @@ public enum DogMood: String, CaseIterable, Codable, Sendable {
 /// Turns breaches into the dog's mood and emits each breach's alert at most once.
 public struct MoodEngine: Sendable {
     public static let proudDuration: TimeInterval = 10
+    /// An Ignore lasts until its key has had no breach for this long.
+    public static let ignoreCooldown: TimeInterval = 600
 
     public private(set) var mood: DogMood = .napping
     /// Breaches whose alert popover is currently open.
     public private(set) var openAlertIDs: Set<Int> = []
     private var sulkingIDs: Set<Int> = []
     private var alertedIDs: Set<Int> = []
-    private var ignoredIDs: Set<Int> = []
+    /// Ignored key → last uptime it had a breach (or the app was paused).
+    private var ignored: [BreachKey: TimeInterval] = [:]
     private var proudUntil: TimeInterval?
 
     public init() {}
@@ -27,6 +30,7 @@ public struct MoodEngine: Sendable {
         now: TimeInterval
     ) -> [Breach] {
         if paused {
+            ignored = ignored.mapValues { _ in now }
             openAlertIDs = []
             sulkingIDs = []
             proudUntil = nil
@@ -34,8 +38,11 @@ public struct MoodEngine: Sendable {
             return []
         }
 
+        ignored = ignored.filter { now - $0.value < Self.ignoreCooldown }
+        for breach in breaches where ignored[breach.key] != nil { ignored[breach.key] = now }
+
         let allIDs = Set(breaches.map(\.id))
-        let active = breaches.filter { !isMuted($0.key.entity) && !ignoredIDs.contains($0.id) }
+        let active = breaches.filter { !isMuted($0.key.entity) && ignored[$0.key] == nil }
         let activeIDs = Set(active.map(\.id))
 
         // An alerted breach that ended (not merely muted) was dealt with — be proud.
@@ -44,12 +51,10 @@ public struct MoodEngine: Sendable {
         }
         openAlertIDs.formIntersection(activeIDs)
         sulkingIDs.formIntersection(activeIDs)
-        // Pruned against active (not all) breaches, so one re-alerts when its snooze or always-ignore
-        // ends; Ignore still covers the whole episode through `ignoredIDs`.
+        // Pruned against active (not all) breaches, so one re-alerts when its snooze or always-ignore ends.
         alertedIDs.formIntersection(activeIDs)
-        ignoredIDs.formIntersection(allIDs)
 
-        let newAlerts = active.filter { $0.progress >= 1 && !alertedIDs.contains($0.id) }
+        let newAlerts = active.filter { $0.isOver && $0.progress >= 1 && !alertedIDs.contains($0.id) }
         for breach in newAlerts {
             alertedIDs.insert(breach.id)
             openAlertIDs.insert(breach.id)
@@ -80,19 +85,19 @@ public struct MoodEngine: Sendable {
         if !sulkingIDs.isEmpty { mood = .sulking }
     }
 
-    /// "Ignore": mute this breach episode only. A later episode can bark again.
-    public mutating func ignore(breachID: Int) {
-        ignoredIDs.insert(breachID)
-        openAlertIDs.remove(breachID)
-        sulkingIDs.remove(breachID)
+    /// "Ignore": mute this app and resource until it has been calm for `ignoreCooldown`.
+    public mutating func ignore(_ key: BreachKey, now: TimeInterval) {
+        ignored[key] = now
     }
 
-    /// True while this breach episode is ignored; cleared once the breach ends.
-    public func isIgnored(breachID: Int) -> Bool {
-        ignoredIDs.contains(breachID)
+    public func isIgnored(_ key: BreachKey) -> Bool {
+        ignored[key] != nil
     }
 
+    /// Forgets the running state but keeps Ignores.
     public mutating func reset() {
-        self = MoodEngine()
+        var fresh = MoodEngine()
+        fresh.ignored = ignored
+        self = fresh
     }
 }
