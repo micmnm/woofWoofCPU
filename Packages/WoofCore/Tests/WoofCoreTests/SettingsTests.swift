@@ -49,6 +49,17 @@ import Testing
         #expect(reloaded.snoozes.count == 1)
     }
 
+    @Test func oldCustomLimitsStillDecode() throws {
+        struct OldLimits: Codable { var cpu: Limit; var memory: Limit }
+        let old = OldLimits(cpu: Limit(threshold: 42, window: 7), memory: Limit(threshold: 0.5, window: 9))
+        let json = try "{\"custom\":{\"_0\":" + String(decoding: JSONEncoder().encode(old), as: UTF8.self) + "}}"
+        let decoded = try JSONDecoder().decode(LimitsSetting.self, from: Data(json.utf8))
+        var expected = Sensitivity.balanced.limits
+        expected.cpu = old.cpu
+        expected.memory = old.memory
+        #expect(decoded == .custom(expected))
+    }
+
     @Test func regularBowlIsNotStored() {
         let store = SettingsStore(defaults: defaults, now: now)
         store.setBowl(.big, for: key)

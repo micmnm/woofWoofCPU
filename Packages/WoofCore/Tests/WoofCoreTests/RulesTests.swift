@@ -5,7 +5,7 @@ import Testing
     @Test func balancedIsTheSpecDefault() {
         let limits = Sensitivity.balanced.limits
         #expect(limits.cpu == Limit(threshold: 100, window: 180))
-        #expect(limits.memory == Limit(threshold: 0.20, window: 300))
+        #expect(limits.memory == Limit(threshold: 0.15, window: 300))
     }
 
     @Test func presetsGetStricterFromChillToParanoid() {
@@ -17,18 +17,44 @@ import Testing
 
     @Test func memoryThresholdScalesWithRAM() {
         let limits = Sensitivity.balanced.limits
-        #expect(limits.thresholdValue(for: .memory, physicalMemory: 16 * gb) == 0.2 * Double(16 * gb))
+        #expect(limits.thresholdValue(for: .memory, physicalMemory: 16 * gb) == 0.15 * Double(16 * gb))
         #expect(limits.thresholdValue(for: .cpu, physicalMemory: 16 * gb) == 100)
     }
 
     @Test func bowlsScaleOnlyTheMemoryThreshold() {
         let limits = Sensitivity.balanced.limits
         #expect(limits.fed(.regular) == limits)
-        #expect(abs(limits.fed(.big).memory.threshold - 0.30) < 1e-9)
+        #expect(abs(limits.fed(.big).memory.threshold - 0.225) < 1e-9)
         #expect(limits.fed(.big).memory.window == 300)
-        #expect(limits.fed(.huge).memory.threshold == 0.40)
+        #expect(abs(limits.fed(.huge).memory.threshold - 0.30) < 1e-9)
         #expect(limits.fed(.huge).cpu == limits.cpu)
         #expect(limits.fed(.bottomless).thresholdValue(for: .memory, physicalMemory: 16 * gb) == .infinity)
+    }
+
+    @Test func stopsMatchTheSpecTable() {
+        // cpu, cpu window, mem floor, mem window, memoryStrainAt, cpuStrainThermal, cpuStrainBusy, cpuShare, runaway
+        let rows: [(Sensitivity, Double, Double, Double, Double, MemoryPressure, ThermalLevel, Double, Double, Double)] = [
+            (.chill, 200, 600, 0.25, 900, .critical, .critical, 0.90, 0.50, 1800),
+            (.relaxed, 150, 300, 0.20, 600, .critical, .serious, 0.85, 0.40, 1200),
+            (.balanced, 100, 180, 0.15, 300, .warning, .serious, 0.75, 0.33, 600),
+            (.alert, 70, 120, 0.10, 180, .warning, .serious, 0.60, 0.25, 300),
+            (.paranoid, 50, 60, 0.05, 120, .warning, .fair, 0.50, 0.20, 180),
+        ]
+        for (stop, cpu, cpuWindow, floor, memWindow, memAt, thermal, busy, share, runaway) in rows {
+            let expected = Limits(
+                cpu: Limit(threshold: cpu, window: cpuWindow), memory: Limit(threshold: floor, window: memWindow),
+                memoryStrainAt: memAt, cpuStrainThermal: thermal, cpuStrainBusy: busy, cpuShare: share, runawayWindow: runaway
+            )
+            #expect(stop.limits == expected, "\(stop.displayName)")
+        }
+    }
+
+    @Test func conveniencePairInitUsesBalancedExtras() {
+        let limits = Limits(cpu: Limit(threshold: 42, window: 7), memory: Limit(threshold: 0.5, window: 9))
+        var expected = Sensitivity.balanced.limits
+        expected.cpu = limits.cpu
+        expected.memory = limits.memory
+        #expect(limits == expected)
     }
 
     @Test func customLimitsOverridePreset() {
