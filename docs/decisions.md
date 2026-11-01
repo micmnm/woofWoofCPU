@@ -65,6 +65,7 @@ Why: a fixed limit means different things on different Macs. On an 8 GB fanless 
 - Advanced labels read "CPU: app uses more than (% of one core)", "for", "Memory: app holds more than" and "for", which merges the new meaning with the voice guide's unit clarity.
 - The napping line is seeded by the hours since the reference date; seeding by the literal hour of day made the rare line unreachable.
 - Settings says "Patrol" for the check interval and "Breed" for the skin; the skins are Classic, 8-bit classic, Pixel pup and Shiba.
+- On an 8 GB Mac memory pressure sits at warning most of the day, so Balanced waits for critical; pick Alert to react at warning.
 
 ## Explicitly skipped for now (user decision)
 

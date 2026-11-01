@@ -22,7 +22,7 @@ Strain-aware barking (Balanced, on the MacBook Air; `make miaw` for the load):
 - [ ] Calm Mac, busy browser: normal browsing plus a video for 15 min and the dog never barks.
 - [ ] Runaway: `bin/miawMiawCPU cpu --cores 1 --for 15m` makes the dog bark after about 10 min (about 5 min on battery) with the runaway copy, and the app row opens with the stuck process first.
 - [ ] CPU strain: `bin/miawMiawCPU cpu --cores all --for 6m` pushes the Mac above 75% busy, and the dog barks at miawMiawCPU after 3 min.
-- [ ] Memory strain: `bin/miawMiawCPU mem --gb 5 --for 10m` takes memory pressure to warning, the dog barks at miawMiawCPU after 5 min, and the header says "Your Mac is short on memory."
+- [ ] Memory strain (switch to Alert): `bin/miawMiawCPU mem --gb 5 --for 10m` takes memory pressure to warning, the dog barks at miawMiawCPU after 3 min, and the header says "Your Mac is short on memory."
 - [ ] Ignore sticks: Ignore during the memory strain run, let memory dip briefly, and no new bark comes within 10 min.
 - [ ] Snooze end: snooze 15 min with the hog still running; no instant bark when the snooze ends, and it barks one window later.
 - [ ] Self-cost stays below 1% of one core while calm (Activity Monitor, 5 min).

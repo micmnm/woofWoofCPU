@@ -100,11 +100,11 @@ Independently of strain and usual usage, an entity is **over (CPU, runaway)** wh
 |---|---|---|---|---|---|---|
 | Chill | critical | 25% | critical / 90% (65%) | 200% / 50% | 10 / 15 min | 30 min |
 | Relaxed | critical | 20% | serious / 85% (60%) | 150% / 40% | 5 / 10 min | 20 min |
-| **Balanced** | warning | 15% | serious / 75% (50%) | 100% / 33% | 3 / 5 min | 10 min |
+| **Balanced** | critical | 15% | serious / 75% (50%) | 100% / 33% | 3 / 5 min | 10 min |
 | Alert | warning | 10% | serious / 60% (35%) | 70% / 25% | 2 / 3 min | 5 min |
 | Paranoid | warning | 5% | fair / 50% (25%) | 50% / 20% | 1 / 2 min | 3 min |
 
-Worked example (user's Air, Balanced): memory pressure goes to warning, and the browser holds 2.4 GB (≥ 15% of 8 GB = 1.2 GB) with nothing learned yet. After 5 min the dog barks. Once 2.4 GB has become usual, the dog only barks if the browser grows beyond its usual high.
+Worked example (user's Air, Balanced): memory pressure goes to critical, and the browser holds 2.4 GB (≥ 15% of 8 GB = 1.2 GB) with nothing learned yet. After 5 min the dog barks. Once 2.4 GB has become usual, the dog only barks if the browser grows beyond its usual high.
 
 **Advanced** still shows four editable numbers for the current stop: CPU minimum, CPU window, memory floor and memory window. Editing switches to Custom. Custom keeps the strain triggers, share of load and runaway window of the stop it was edited from, because `Limits` itself carries every field and editing copies the current stop's `Limits`. Old stored custom values that lack the new fields decode them from Balanced.
 
@@ -207,7 +207,7 @@ Unit tests per package (above). Manual scenarios on the user's Air, Balanced, us
 1. **Calm Mac, busy browser:** normal browsing plus a video for 15 min → no bark.
 2. **Runaway:** `miawMiawCPU cpu --cores 1 --for 15m` → the dog barks after about 10 min, or about 5 min on battery, with runaway copy.
 3. **CPU strain:** `miawMiawCPU cpu --cores all --for 6m` → busy above 75% → barks at miaw after 3 min.
-4. **Memory strain:** `miawMiawCPU mem --gb 5 --for 10m` → pressure reaches warning → barks at miaw after 5 min. The header shows "short on memory".
+4. **Memory strain (on Alert):** `miawMiawCPU mem --gb 5 --for 10m` → pressure reaches warning → barks at miaw after 3 min. The header shows "short on memory".
 5. **Ignore sticks:** Ignore during scenario 4, let memory dip briefly → no new bark within 10 min.
 6. **Snooze end:** snooze 15 min with the hog still running → no instant bark when the snooze ends; it barks one window later.
 7. **Self-cost** is still below 1% of one core while calm (Activity Monitor, 5 min).

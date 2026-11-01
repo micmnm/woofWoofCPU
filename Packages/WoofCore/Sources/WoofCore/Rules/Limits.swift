@@ -44,7 +44,7 @@ public struct Limits: Codable, Equatable, Sendable {
     /// The other fields take Balanced's values (literals, since `Sensitivity.balanced` is built from this type).
     public init(cpu: Limit, memory: Limit) {
         self.init(
-            cpu: cpu, memory: memory, memoryStrainAt: .warning, cpuStrainThermal: .serious,
+            cpu: cpu, memory: memory, memoryStrainAt: .critical, cpuStrainThermal: .serious,
             cpuStrainBusy: 0.75, cpuShare: 0.33, runawayWindow: 600
         )
     }
@@ -55,7 +55,7 @@ public struct Limits: Codable, Equatable, Sendable {
         self.init(
             cpu: try c.decode(Limit.self, forKey: .cpu),
             memory: try c.decode(Limit.self, forKey: .memory),
-            memoryStrainAt: try c.decodeIfPresent(MemoryPressure.self, forKey: .memoryStrainAt) ?? .warning,
+            memoryStrainAt: try c.decodeIfPresent(MemoryPressure.self, forKey: .memoryStrainAt) ?? .critical,
             cpuStrainThermal: try c.decodeIfPresent(ThermalLevel.self, forKey: .cpuStrainThermal) ?? .serious,
             cpuStrainBusy: try c.decodeIfPresent(Double.self, forKey: .cpuStrainBusy) ?? 0.75,
             cpuShare: try c.decodeIfPresent(Double.self, forKey: .cpuShare) ?? 0.33,
@@ -126,7 +126,7 @@ public enum Sensitivity: Int, Codable, CaseIterable, Sendable {
                    memoryStrainAt: .critical, cpuStrainThermal: .serious, cpuStrainBusy: 0.85, cpuShare: 0.40, runawayWindow: 1200)
         case .balanced:
             Limits(cpu: Limit(threshold: 100, window: 180), memory: Limit(threshold: 0.15, window: 300),
-                   memoryStrainAt: .warning, cpuStrainThermal: .serious, cpuStrainBusy: 0.75, cpuShare: 0.33, runawayWindow: 600)
+                   memoryStrainAt: .critical, cpuStrainThermal: .serious, cpuStrainBusy: 0.75, cpuShare: 0.33, runawayWindow: 600)
         case .alert:
             Limits(cpu: Limit(threshold: 70, window: 120), memory: Limit(threshold: 0.10, window: 180),
                    memoryStrainAt: .warning, cpuStrainThermal: .serious, cpuStrainBusy: 0.60, cpuShare: 0.25, runawayWindow: 300)

@@ -62,7 +62,7 @@ import Testing
 
     @Test func strainedMacBarksAtCulpritAfterWindow() {
         var machine = MachineState.calm()
-        machine.memoryPressure = .warning
+        machine.memoryPressure = .critical
         #expect(alertTimes([browser], machine: machine, until: 600) == [300])
     }
 
@@ -81,7 +81,7 @@ import Testing
     @Test func bowlRaisesOnlyThatEntitysMemoryLimit() {
         var pipeline = WatchPipeline()
         var machine = strained
-        machine.memoryPressure = .warning
+        machine.memoryPressure = .critical
         let fed = entity("fed", memory: 9 * gb) // over 8 GB, under the Big bowl's 12 GB
         let hungry = entity("hungry", memory: 9 * gb)
         let step = pipeline.step(
@@ -94,7 +94,7 @@ import Testing
     @Test func bottomlessBowlStillWatchesCPU() {
         var pipeline = WatchPipeline()
         var machine = strained
-        machine.memoryPressure = .warning
+        machine.memoryPressure = .critical
         let hog = entity("hog", cpu: 150, memory: 15 * gb)
         let step = pipeline.step(
             entities: [hog], machine: machine, limits: limits, bowls: [hog.key: .bottomless], usual: UsualUsage(),

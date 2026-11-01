@@ -36,7 +36,7 @@ import Testing
         let rows: [(Sensitivity, Double, Double, Double, Double, MemoryPressure, ThermalLevel, Double, Double, Double)] = [
             (.chill, 200, 600, 0.25, 900, .critical, .critical, 0.90, 0.50, 1800),
             (.relaxed, 150, 300, 0.20, 600, .critical, .serious, 0.85, 0.40, 1200),
-            (.balanced, 100, 180, 0.15, 300, .warning, .serious, 0.75, 0.33, 600),
+            (.balanced, 100, 180, 0.15, 300, .critical, .serious, 0.75, 0.33, 600),
             (.alert, 70, 120, 0.10, 180, .warning, .serious, 0.60, 0.25, 300),
             (.paranoid, 50, 60, 0.05, 120, .warning, .fair, 0.50, 0.20, 180),
         ]

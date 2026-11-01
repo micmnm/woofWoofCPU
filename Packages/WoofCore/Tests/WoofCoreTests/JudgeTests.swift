@@ -42,9 +42,13 @@ import Testing
 
     // MARK: Strain
 
-    @Test func memoryStrainAtWarning() {
-        #expect(Judge.strain(machine(pressure: .warning), balanced) == Strain(memory: true, cpu: false))
-        #expect(Judge.strain(machine(pressure: .critical), balanced).memory)
+    @Test func balancedMemoryStrainAtCritical() {
+        #expect(Judge.strain(machine(pressure: .critical), balanced) == Strain(memory: true, cpu: false))
+        #expect(!Judge.strain(machine(pressure: .warning), balanced).memory)
+    }
+
+    @Test func alertMemoryStrainAtWarning() {
+        #expect(Judge.strain(machine(pressure: .warning), Sensitivity.alert.limits) == Strain(memory: true, cpu: false))
     }
 
     @Test func noMemoryStrainWhenNormal() {
@@ -78,15 +82,15 @@ import Testing
     }
 
     @Test func workedExampleBarksAtBrowser() {
-        #expect(judge(app(memory: bytes(2.4)), .memory, machine(pressure: .warning)) == [Verdict(reason: .strain, window: 300)])
+        #expect(judge(app(memory: bytes(2.4)), .memory, machine(pressure: .critical)) == [Verdict(reason: .strain, window: 300)])
     }
 
     @Test func smallAppIsNoMemoryCulprit() {
-        #expect(judge(app(memory: bytes(1.0)), .memory, machine(pressure: .warning)) == [])
+        #expect(judge(app(memory: bytes(1.0)), .memory, machine(pressure: .critical)) == [])
     }
 
     @Test func bowlRaisesFloor() {
-        let tight = machine(pressure: .warning)
+        let tight = machine(pressure: .critical)
         #expect(judge(app(memory: bytes(1.5)), .memory, tight, bowl: .big) == [])
         #expect(judge(app(memory: bytes(1.9)), .memory, tight, bowl: .big) == [Verdict(reason: .strain, window: 300)])
     }
@@ -97,13 +101,13 @@ import Testing
 
     @Test func usualSuppresses() {
         let usual = learned(app(memory: bytes(2.4)))
-        let tight = machine(pressure: .warning)
+        let tight = machine(pressure: .critical)
         #expect(judge(app(memory: bytes(2.4)), .memory, tight, usual: usual) == [])
         #expect(judge(app(memory: bytes(3.5)), .memory, tight, usual: usual) == [Verdict(reason: .strain, window: 300)])
     }
 
     @Test func continuingLowersFloorTenPercent() {
-        let tight = machine(pressure: .warning)
+        let tight = machine(pressure: .critical)
         #expect(judge(app(memory: bytes(1.1)), .memory, tight, continuing: true) == [Verdict(reason: .strain, window: 300)])
         #expect(judge(app(memory: bytes(1.1)), .memory, tight) == [])
     }

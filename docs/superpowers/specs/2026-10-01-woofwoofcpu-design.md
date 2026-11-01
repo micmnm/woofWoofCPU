@@ -174,7 +174,7 @@ The **sensitivity slider** has five stops that set every field at once:
 |---|---|---|---|---|---|---|
 | Chill | critical | 25% | critical / 90% (65%) | 200% / 50% | 10 / 15 min | 30 min |
 | Relaxed | critical | 20% | serious / 85% (60%) | 150% / 40% | 5 / 10 min | 20 min |
-| **Balanced** (default) | warning | 15% | serious / 75% (50%) | 100% / 33% | 3 / 5 min | 10 min |
+| **Balanced** (default) | critical | 15% | serious / 75% (50%) | 100% / 33% | 3 / 5 min | 10 min |
 | Alert | warning | 10% | serious / 60% (35%) | 70% / 25% | 2 / 3 min | 5 min |
 | Paranoid | warning | 5% | fair / 50% (25%) | 50% / 20% | 1 / 2 min | 3 min |
 
@@ -195,7 +195,7 @@ While the Mac is strained on a resource, an entity is a **culprit** for it when 
 
 While a breach for the pair is already running, the floor, CPU minimum, share and runaway threshold are 10% lower (× 0.9), so a value hovering at the line doesn't flap. The usual-high test is not lowered.
 
-Worked example (a MacBook Air with 8 GB, Balanced): memory pressure goes to warning and the browser holds 2.4 GB (the floor is 15% of 8 GB = 1.2 GB) with nothing learned yet. After 5 min over, the dog barks. Once 2.4 GB has become usual, the dog barks only if the browser grows beyond its usual high.
+Worked example (a MacBook Air with 8 GB, Balanced): memory pressure goes to critical and the browser holds 2.4 GB (the floor is 15% of 8 GB = 1.2 GB) with nothing learned yet. After 5 min over, the dog barks. Once 2.4 GB has become usual, the dog barks only if the browser grows beyond its usual high.
 
 #### Runaway
 
