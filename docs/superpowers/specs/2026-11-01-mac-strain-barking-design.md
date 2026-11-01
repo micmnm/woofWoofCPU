@@ -1,6 +1,6 @@
 # Bark when the Mac is hurting — design
 
-Status: ready for your review · Date: 2026-11-01 · Amends §4.4, §4.5, §5.2, §5.3, §6 and §8 of `2026-10-01-woofwoofcpu-design.md` (the main spec). When this ships, fold the changes into the main spec; it stays the authority.
+Status: Merged into the main spec · Date: 2026-11-01 · Amended §4.4, §4.5, §5.2, §5.3, §6 and §8 of `2026-10-01-woofwoofcpu-design.md`, which stays the authority. Where this document and the code differ, the main spec follows the code.
 
 ## 1. Why
 

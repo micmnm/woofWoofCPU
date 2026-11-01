@@ -138,7 +138,10 @@ Each skin may add a few lines to the bark banks. Unknown skins use only the defa
 | Row status | Not allowed (owned by another user) | Not allowed: it belongs to another user |
 | Row status | Failed (error N) | Couldn't quit it (error N) |
 | Settings, check interval | Sniffing: … | Patrol: … |
-| Settings, Advanced | CPU above (%) | CPU above (% of one core) |
+| Settings, Advanced | CPU above (%) | CPU: app uses more than (% of one core) |
+| Settings, Advanced | CPU for (minutes) | for, with "minutes" beside the field |
+| Settings, Advanced | Memory above (GB) | Memory: app holds more than, with "GB" beside the field |
+| Settings, Advanced | Memory for (minutes) | for, with "minutes" beside the field |
 | Settings, Dog tab | Skin | Breed |
 | Skin names | Symbol dog / Pixel symbol dog | Classic / 8-bit classic |
 | Exceptions | No snoozes. | No snoozes right now. |

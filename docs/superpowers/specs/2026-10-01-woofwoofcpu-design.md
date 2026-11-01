@@ -1,10 +1,10 @@
 # woofWoofCPU — design spec
 
-Date: 2026-10-01 · Status: approved; revised after prototyping (grouping rules, Kill semantics, permissions, tooling)
+Date: 2026-10-01 · Status: approved; revised after prototyping (grouping rules, Kill semantics, permissions, tooling) and extended with strain-aware barking (§3.1–§3.5 of `2026-11-01-mac-strain-barking-design.md`, now merged here)
 
 ## 1. What it is
 
-A macOS menu bar app with a dog in it. The dog watches running apps and processes. When one of them uses too much **CPU** or **memory** for too long, the dog barks and turns red; click it and a speech-bubble popover drops from the menu bar so you can decide what to do: **Quit** it (hold ⌥ to **Kill**), **Snooze**, **Ignore**, or **Always ignore**.
+A macOS menu bar app with a dog in it. The dog watches running apps and processes. When the Mac is hurting and one of them is the cause (or one process is stuck on a core), the dog barks and turns red; click it and a speech-bubble popover drops from the menu bar so you can decide what to do: **Quit** it (hold ⌥ to **Kill**), **Snooze**, **Ignore**, or **Always ignore**.
 
 Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors (Stats, iStat Menus) only alert on system totals; App Tamer and GitHub watchdogs detect sustained per-app hogs but have no personality; RunCat has personality but no detection or actions. woofWoofCPU combines all three.
 
@@ -15,8 +15,8 @@ Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors 
 
 ### Success criteria
 
-1. A process pinned at high CPU (e.g. `yes > /dev/null`) makes the dog go sniff → growl → bark within the configured window, and Quit/Kill from the popover ends it.
-2. Short spikes (shorter than the window) never cause a bark.
+1. A process pinned at a full core (e.g. `yes > /dev/null`) makes the dog go sniff → growl → bark within the runaway window, and Quit/Kill from the popover ends it.
+2. Short spikes (shorter than the window) never cause a bark, and a busy app on a calm Mac never does either.
 3. Chrome and its helper processes appear as one "Google Chrome" entry, which you can expand to quit an individual helper.
 4. woofWoofCPU itself averages under 1% of one CPU core while calm.
 5. The popover is visible and clickable over a full-screen app.
@@ -29,15 +29,16 @@ Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors 
 - Six-state animated menu bar dog; popover with top list and actions.
 - Bark sound (with mute).
 - Sensitivity slider (Chill ↔ Paranoid) plus an Advanced section for exact numbers.
+- Strain-aware judging: the dog barks when the Mac is strained and an app is the cause, or when one process runs away. It learns what is usual for each app (§4.4).
 - Snooze, Ignore, Always ignore (an editable ignore list).
 - A bigger memory **bowl** per app, for apps that legitimately need more memory.
 - Click dog → live top list (mini Activity Monitor).
 - Launch at login, pause watching.
-- Four skins: **Symbol dog** (default), **Pixel symbol dog**, **Pixel** and **Shiba**; switchable in Settings.
+- Four breeds (skins): **Classic** (default), **8-bit classic**, **Pixel pup** and **Shiba**; switchable in Settings.
 
 ### Explicitly out of v1
 
-- Network monitoring (maybe later; the design leaves a `Resource` slot for it, see §11).
+- Network monitoring (maybe later; the design leaves a `Resource` slot for it, see §11). Disk and GPU strain are not judged either.
 - macOS notifications (decided: never — the popover handles full-screen).
 - Pause/throttle (SIGSTOP) and renice actions.
 - History / "naughty list".
@@ -62,12 +63,12 @@ woofWoofCPU/
 ├── Packages/WoofCore/              # local Swift package: all logic, no UI
 │   ├── Package.swift
 │   ├── Sources/WoofCore/
-│   │   ├── Sampling/               # ProcessSampler, ProcessSnapshot, libproc wrappers
+│   │   ├── Sampling/               # ProcessSampler, ProcessSnapshot, libproc wrappers, MachineState
 │   │   ├── Grouping/               # AppGrouper, Entity
-│   │   ├── Rules/                  # Sensitivity, Limits, Bowl, BreachTracker
+│   │   ├── Rules/                  # Sensitivity, Limits, Bowl, Judge, UsualUsage, BreachTracker
 │   │   ├── Mood/                   # DogMood, MoodEngine
 │   │   ├── Actions/                # ProcessActions (quit/kill), ActionPolicy
-│   │   └── Settings/               # SettingsStore, IgnoreList, Snoozes
+│   │   └── Settings/               # SettingsStore, IgnoreList, Snoozes, UsualUsageStore
 │   └── Tests/WoofCoreTests/
 ├── WoofWoofCPU/                    # app target (thin)
 │   ├── App/                        # AppDelegate, AppCoordinator
@@ -101,7 +102,9 @@ The `WoofCore`/app split keeps every rule and state machine testable with `swift
                                                                      └────────────────┘   └───────────────┘
 ```
 
-All `WoofCore` units are pure or depend on injected protocols (`Clock`, `ProcessSource`, `ProcessSignaller`), so tests can drive them deterministically.
+Each tick also reads the machine's state (§4.1) and feeds it to the `Judge` (§4.4), which decides what counts as a breach before the `BreachTracker` times it.
+
+All `WoofCore` units are pure or depend on injected protocols (`Clock`, `ProcessSource`, `MachineStateSource`, `ProcessSignaller`), so tests can drive them deterministically.
 
 ### 4.1 Sampling — `ProcessSampler`
 
@@ -115,11 +118,24 @@ All `WoofCore` units are pure or depend on injected protocols (`Clock`, `Process
 - Processes that vanish or return `EPERM` are skipped silently. **Processes owned by root or other users can't be read without privileges.** On the dev machine about a third of all PIDs were unreadable (e.g. `mds_stores`, `backupd`). v1 therefore watches only the current user's processes. Watching system daemons would need a privileged helper (§11).
 - Implemented behind a `ProcessSource` protocol; tests feed scripted snapshots.
 
+**Machine state.** `Sampler.sample` returns a `Snapshot { entities, machine }`. The `MachineState` is read once per tick with public APIs, behind a `MachineStateSource` protocol (`LiveMachineStateSource` in production):
+
+| Field | Source | Notes |
+|---|---|---|
+| `memoryPressure` normal / warning / critical | `sysctl kern.memorystatus_vm_pressure_level` (1 / 2 / 4) | Polled per tick; any other value is normal. |
+| `thermal` nominal / fair / serious / critical | `ProcessInfo.thermalState` | |
+| `onBattery` | IOKit `IOPSCopyPowerSourcesInfo` / `IOPSGetProvidingPowerSourceType` | Desktop Macs: false. |
+| `lowPowerMode` | `ProcessInfo.isLowPowerModeEnabled` | |
+| `cpuBusy` 0…1 | `host_statistics(HOST_CPU_LOAD_INFO)` tick deltas: (user + system + nice) / all (`HostCPUCalculator`) | Whole machine, so it includes processes the dog can't read. The first tick after a reset is 0. |
+| `logicalCores`, `physicalMemory` | `ProcessInfo` | Constant. |
+
+`Sampler.reset()` (after wake or pause) also resets the host CPU calculator, so time asleep never shows up as load.
+
 ### 4.2 Tick scheduling and self-cost
 
-- Tick interval is user-configurable (Settings → General → Sniffing slider: Snoozy 30 s / Laid-back 10 s / Eager 5 s / Zoomies 2 s; holding ⌥ appends the seconds to the label), default **5 s**. A change applies from the next tick. Breach timing is wall-clock, so the interval only changes detection granularity.
+- Tick interval is user-configurable (Settings → General → Patrol slider: Snoozy 30 s / Laid-back 10 s / Eager 5 s / Zoomies 2 s; holding ⌥ appends the seconds to the label), default **5 s**. A change applies from the next tick. Breach timing is wall-clock, so the interval only changes detection granularity.
 - Ticks run on a background task; results are published to the main actor.
-- Ticks are suspended while the system sleeps. On `NSWorkspace.didWakeNotification` all breach timers reset, so time asleep never counts toward a bark.
+- Ticks are suspended while the system sleeps. On `NSWorkspace.didWakeNotification` all breach timers reset, so time asleep never counts toward a bark. Ignores are kept (§4.4).
 - Budget: < 1% of one core on average while calm, verified with Activity Monitor during manual testing (success criterion 4).
 
 ### 4.3 Grouping — `AppGrouper` and `Entity`
@@ -138,47 +154,100 @@ Everything else is a **standalone** entity keyed by executable path, e.g. a runa
 - Each app entity keeps its member processes sorted by CPU so the popover can drill down.
 - woofWoofCPU never judges itself or `kernel_task`.
 
-### 4.4 Rules — `Sensitivity`, `Limits`, `BreachTracker`
+### 4.4 Rules — `Sensitivity`, `Limits`, `Judge`, `UsualUsage`, `BreachTracker`
 
-**Limits** per resource are a threshold plus a window X, for example "CPU above 100% for 3 min".
+The dog barks only when **(a) the Mac is strained** on a resource and **(b) a specific app is the cause**, sustained for a window. One exception: a single process stuck on a core (a **runaway**) barks even on a calm Mac. A busy browser on a calm Mac never barks. `Judge` decides each tick whether an (entity, resource) pair is over and why; `BreachTracker` times it; `MoodEngine` (§4.5) turns it into a mood.
 
-The **sensitivity slider** has five stops that set all limits at once. Memory is a fraction of physical RAM, so it scales across Macs; the UI shows it in GB.
+**Limits** carry, per resource, a threshold plus a window, and the strain fields the `Judge` needs:
 
-| Stop | CPU limit | CPU window | Memory limit | Memory window |
-|---|---|---|---|---|
-| Chill | 200% | 10 min | 40% RAM | 15 min |
-| Relaxed | 150% | 5 min | 30% RAM | 10 min |
-| **Balanced** (default) | 100% | 3 min | 20% RAM | 5 min |
-| Alert | 70% | 2 min | 15% RAM | 3 min |
-| Paranoid | 50% | 1 min | 10% RAM | 2 min |
+- CPU: the **culprit minimum** (percent of one core) and the CPU window.
+- Memory: the **floor** (a fraction of physical RAM, so it scales across Macs; the UI shows GB) and the memory window.
+- `memoryStrainAt` (memory pressure level), `cpuStrainThermal` (thermal level), `cpuStrainBusy` (whole-machine busy fraction), `cpuShare` (share of the machine's load) and `runawayWindow`.
 
-**Advanced** shows the four numbers for the current stop and allows editing them. Editing switches the slider label to **Custom**; moving the slider again discards the custom values.
+Stored custom limits that lack the strain fields decode them from Balanced.
 
-**Bowls** let one entity use more memory than the shared limit. Its memory limit is the shared one times the bowl's factor, so bowls follow the slider and Advanced edits; CPU limits and all windows are unchanged.
+#### Sensitivity stops
+
+The **sensitivity slider** has five stops that set every field at once:
+
+| Stop | Memory strained at | Memory floor (× RAM) | CPU strained at: thermal ≥ / busy ≥ (on battery) | CPU culprit: minimum / share of load | Windows CPU / memory | Runaway window |
+|---|---|---|---|---|---|---|
+| Chill | critical | 25% | critical / 90% (65%) | 200% / 50% | 10 / 15 min | 30 min |
+| Relaxed | critical | 20% | serious / 85% (60%) | 150% / 40% | 5 / 10 min | 20 min |
+| **Balanced** (default) | warning | 15% | serious / 75% (50%) | 100% / 33% | 3 / 5 min | 10 min |
+| Alert | warning | 10% | serious / 60% (35%) | 70% / 25% | 2 / 3 min | 5 min |
+| Paranoid | warning | 5% | fair / 50% (25%) | 50% / 20% | 1 / 2 min | 3 min |
+
+**Advanced** shows four editable numbers for the current stop, labelled "CPU: app uses more than (% of one core)", "for", "Memory: app holds more than" and "for" (windows in minutes, memory in GB). Editing switches the slider label to **Custom** and keeps the other fields (strain triggers, share of load, runaway window) of the stop it was edited from; moving the slider again discards the custom values.
+
+#### Is the Mac strained?
+
+- **Memory:** `memoryPressure ≥ memoryStrainAt`.
+- **CPU:** `thermal ≥ cpuStrainThermal`, **or** `cpuBusy ≥` the busy trigger. On battery or in Low Power Mode the busy trigger is 25 points lower (never below 0).
+
+#### Who is the culprit?
+
+While the Mac is strained on a resource, an entity is a **culprit** for it when all of these hold:
+
+- **Memory:** its footprint is at least the memory floor × its bowl factor (below). A Bottomless bowl is never a memory culprit.
+- **CPU:** its CPU is at least the CPU minimum **and** it holds at least `cpuShare` of the load, where load = `cpuBusy × logicalCores × 100`. If the load is 0 the share test passes.
+- **Above its usual:** if its usual high for that resource is learned, the value must be strictly above it. Not learned yet passes.
+
+While a breach for the pair is already running, the floor, CPU minimum, share and runaway threshold are 10% lower (× 0.9), so a value hovering at the line doesn't flap. The usual-high test is not lowered.
+
+Worked example (a MacBook Air with 8 GB, Balanced): memory pressure goes to warning and the browser holds 2.4 GB (the floor is 15% of 8 GB = 1.2 GB) with nothing learned yet. After 5 min over, the dog barks. Once 2.4 GB has become usual, the dog barks only if the browser grows beyond its usual high.
+
+#### Runaway
+
+Independently of strain and usual usage, an entity is **over (CPU, runaway)** when **any one member process** is at ≥ 90% CPU (about one full core; ×0.9 while continuing). It barks after `runawayWindow`, which is **halved on battery or in Low Power Mode**.
+
+- The runaway is judged per process, so one stuck browser tab is caught while normal multi-tab browsing is not.
+- Any process at ≥ 90%, with no upper cap, counts (a multi-core export, encode, VM or game too), and what's usual for the app does not hold it back. Deliberate jobs are silenced with Ignore or Always ignore.
+- Runaway applies to CPU only.
+
+#### What's usual for each app — `UsualUsage`
+
+Per (entity key, resource) the app keeps a time-weighted running **mean and variance**, updated each tick from the elapsed time since the previous tick, with a decay **half-life of 3 days** of observed running time. While the observed history is shorter than the half-life window the mean is a plain time-weighted average, so a value learned after 2 h reflects those 2 h rather than the first sample.
+
+- **Usual high** = mean + 2 × standard deviation, but at least mean × 1.25.
+- It is **learned** after 2 h of observed running time; before that `usualHigh` is nil.
+- Nothing is recorded while paused, for a tick whose elapsed time is more than 3× the poll interval (sleep, clock jump, a stalled tick), or for the dog itself.
+- Entries not seen for 30 days are pruned. The data lives in `~/Library/Application Support/woofWoofCPU/usual.json` (`UsualUsageStore`, Codable), written at most every 5 min and on quit. A corrupt or missing file means starting empty.
+- Settings → Exceptions has **Forget what's usual…** (clears everything after a confirmation).
+
+The effect: the browser's usual 2 GB or Xcode's usual build burst stop counting as misbehaviour, while the browser climbing from 2 GB to 5 GB on a tight Mac still gets blamed.
+
+**Bowls** let one entity use more memory than the shared floor. Its floor is the shared one times the bowl's factor, so bowls follow the slider and Advanced edits; CPU values and all windows are unchanged.
 
 | Bowl | Plain label | Factor | With ⌥ held (Balanced, 64 GB) |
 |---|---|---|---|
-| Regular (default) | Regular | 1× | up to 12.8 GB |
-| Big | a bit more | 1.5× | up to 19.2 GB |
-| Huge | lots more | 2× | up to 25.6 GB |
-| Bottomless | never mind memory | no memory limit | no memory limit |
+| Regular (default) | Regular | 1× | up to 9.6 GB |
+| Big | a bit more | 1.5× | up to 14.4 GB |
+| Huge | lots more | 2× | up to 19.2 GB |
+| Bottomless | never bark about memory | no memory floor | no memory limit |
 
-**BreachTracker** applies to each (entity, resource) pair, using the entity's own memory limit:
+#### `BreachTracker`
 
-- A breach **starts** when the value goes above the limit, and records `since = now`.
-- It **continues** while the value stays above 90% of the limit. This hysteresis band stops the dog flapping around the threshold.
-- It **ends** after 3 consecutive ticks below that band.
-- `progress = (now − since) / window`, clamped to 0…1.
-- Ignored entities (always-ignored, snoozed, or ignored for this breach) are still tracked but flagged `muted`, so they never drive the mood or open the popover. They still appear in the click-dog top list.
+A **breach** is an (entity, resource) pair with at least one verdict from the `Judge`. A verdict is a reason (`strain` or `runaway`) plus the window that reason is judged against.
+
+- **Per-reason clocks.** Each reason keeps its own **over-time**: the seconds it has applied. A reason's clock advances by the time since the previous tick on ticks where that reason applies; the tick on which it first appears adds nothing. A reason that is absent is frozen. The breach's `progress` is the highest of the reasons' `overTime / window` (clamped to 0…1), its `reason` is the reason with that progress (a tie goes to strain), and its `overTime` is that reason's. This avoids jumps when a reason appears or drops out mid-breach.
+- **The clock stops while calm.** Calm ticks don't advance any clock. `Breach.isOver` is false on a calm tick, and an alert fires only on a tick where the pair is over.
+- **Calm period.** A breach ends after the pair has had no verdict for **60 s** continuously (`BreachTracker.calmPeriod`), whatever the tick interval. A breach also ends at once when its entity disappears.
+- The tracker passes the `Judge` whether a breach for the pair is already running (`continuing`).
+- **Muted** entities (always-ignored or snoozed) and Ignored pairs are still tracked but never drive the mood or open the popover. They still appear in the click-dog top list.
+- **Restart on unmute.** When an entity goes from muted to unmuted (snooze expired or cancelled, removed from always-ignore), every breach of that entity restarts its window at that moment: all reasons' over-time is zeroed. It barks only after a fresh full window, never instantly.
+- **Pause, sleep/wake and clock jumps** reset all breach timers.
+
+**Strain with no culprit.** When the Mac is strained but nobody qualifies (every app is within its usual, or the load is in processes the dog can't see), nothing barks and the mood doesn't change. Only the popover header says so (§5.2).
 
 ### 4.5 Mood — `MoodEngine`
 
-The menu bar dog's mood is driven by the most severe unmuted breach across all entities:
+The menu bar dog's mood is driven by the most severe unmuted, un-Ignored breach across all entities (breaches come from §4.4; progress is the breach's `progress`):
 
 | Mood | Condition |
 |---|---|
-| **Napping** | no unmuted breach |
-| **Sniffing** | max progress > 0 and < 0.5 |
+| **Napping** | no active breach (also while strained with no culprit) |
+| **Sniffing** | an active breach exists and max progress < 0.5 |
 | **Growling** | max progress ≥ 0.5 and < 1 |
 | **Barking** | some breach reached progress 1 and its alert is open |
 | **Sulking** | the alerting popover was dismissed (Esc / click outside) and that breach continues |
@@ -188,7 +257,8 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 
 **Alert lifecycle:** when an entity first reaches progress 1, `MoodEngine` emits a single `alert(entity, resource)` event. The coordinator plays the bark sound (unless muted) and the menu bar dog switches to red Barking; the popover does not open by itself. Clicking the barking dog opens it in alert mode. Until the user acts, the dog keeps barking while the breach lasts.
 
-- An entity barks at most **once per breach**. Ignore marks the current breach muted; a new breach (after it ended) can bark again.
+- An entity barks at most **once per breach**, and only on a tick where it is over (`isOver`). A new breach (after the previous one ended) can bark again.
+- **Ignore is sticky.** It mutes the (entity, resource) pair, not just the current episode. The mute lasts until the pair has had **no breach for 10 min** (`MoodEngine.ignoreCooldown = 600`); a new episode inside the cooldown is still ignored and extends it. The cooldown counts monotonic uptime, which doesn't advance asleep. Ignores survive sleep/wake and pause (a paused watcher keeps refreshing them, so the cooldown restarts on resume) but not a relaunch; Always ignore covers permanent cases.
 - If several entities reach 1, one bark is played and all of them appear at the top of the popover.
 - While the watcher is **paused**, the mood is Napping, no ticks are evaluated, and the popover footer shows "Off duty until 15:30".
 
@@ -198,8 +268,8 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 |---|---|---|
 | **Quit** (default button) | `NSRunningApplication.terminate()` — polite; the app may ask to save | `kill(pid, SIGTERM)` |
 | **Kill** (button while ⌥ held) | `SIGKILL` to every member, main process first | `kill(pid, SIGKILL)` |
-| **Snooze** | menu: 15 min · 1 h · until tomorrow (next 06:00) | same (keyed by identity) |
-| **Ignore** | mutes the current breach | same |
+| **Snooze** | menu: for 15 minutes · for 1 hour · until tomorrow (next 06:00); when it ends the window restarts (§4.4) | same (keyed by identity) |
+| **Ignore** | mutes the app's running breaches (per resource) until the pair has had no breach for 10 min | same |
 | **Always ignore** | adds the bundle ID to the ignore list | adds the executable path |
 | **Bowl** | submenu: Regular · Big · Huge · Bottomless, keyed by bundle ID | same, keyed by executable path |
 
@@ -224,12 +294,14 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 - An `NSPanel` hosting SwiftUI. It opens only on a user click and takes key focus then (Esc works); it never opens by itself.
   - `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]`, level `.popUpMenu` (above the status bar), so it shows over full-screen apps.
   - It's anchored under the status item. When the menu bar is hidden (full-screen), it's anchored to the top-right of the screen containing the frontmost window.
-- **Header:** the skin's large dog for the current mood plus a funny line, e.g. *"Google Chrome is chewing all the CPU!"*. Lines are picked from a small bank keyed by resource × mood.
+- **Header:** the skin's large dog for the current mood plus a funny line, e.g. *"Google Chrome is chewing all the CPU!"*. Lines are picked from a small bank keyed by resource × mood; growl and bark have separate banks, and a runaway breach uses its own bank (`docs/voice.md`).
+  - **Strain line:** when the Mac is strained on any resource (and the watcher isn't paused), one plain, fixed line sits under the funny line in every mode. The first that applies wins: "Your Mac is short on memory." · "Your Mac is running hot." (CPU strain with thermal ≥ serious) · "Your Mac is working hard on battery." · "Your Mac is working hard in Low Power Mode." · "Your Mac is working hard." It replaces the limit subline ("Barks at 1.6 GB after 5m") while it shows.
+  - **No culprit:** in list mode, strained with no active breach, the funny line becomes e.g. "Nobody's misbehaving. {app} just eats the most." (the busiest app on the strained resource), or "Nobody I can see is to blame." when no app is visible. The dog stays napping or sniffing and nothing barks.
 - **Rows:** the top **N** entities (default 5, configurable 3–10). Ordering:
   - In alert mode: barking entities first, then by severity.
   - In list mode: by CPU, with a CPU/Memory toggle.
-  - Each row shows the app icon or a generic process icon, the name, the current value, the elapsed time over the limit, a sparkline of the last window with a dashed limit line, and the action buttons.
-- **Drill-down:** app rows have a disclosure triangle that lists their top member processes, each with its own Quit/Kill. This lets you choose app or process.
+  - Each row shows the app icon or a generic process icon, the name, the current value, the elapsed time over the limit, a sparkline of the last window with a dashed limit line, and the action buttons. The dashed line is the entity's current culprit bar (memory floor × bowl, or the CPU minimum) while the Mac is strained on that resource, 90% for a runaway breach, and absent otherwise.
+- **Drill-down:** app rows have a disclosure triangle that lists their top member processes (sorted by CPU, so the stuck one is first), each with its own Quit/Kill. This lets you choose app or process. A multi-process app row with a runaway breach opens expanded.
 - **"+N more…"** row expands the list in place.
 - **Hover freeze:** while the pointer is over the list, row order doesn't change, so a click always lands on the intended row (borrowed from CleanMyMac).
 - ⌥ is tracked by polling `NSEvent.modifierFlags` every 0.1 s while the popover is open. The panel opens on a user click and takes key focus, but as a `.nonactivatingPanel` it leaves the app itself inactive; polling needs no Accessibility permission (a global `flagsChanged` monitor would) and also sees an ⌥ that was already held when the popover opened. While ⌥ is held, every Quit button reads **Kill** and turns red.
@@ -241,9 +313,9 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 
 A regular window hosting SwiftUI, with three tabs:
 
-- **General:** sensitivity slider with an Advanced disclosure, check interval, rows shown (N), launch at login (`SMAppService.mainApp`), mute bark.
-- **Dog:** skin picker with a live preview of all six moods.
-- **Exceptions:** the bigger bowls, each with a bowl picker (Regular removes it; hold ⌥ for GB); the always-ignored apps and processes with remove buttons; and the current snoozes with their expiry and a cancel button.
+- **General:** sensitivity slider with an Advanced disclosure, Patrol (check interval), rows shown (N), launch at login (`SMAppService.mainApp`), mute bark.
+- **Dog:** breed (skin) picker with a live preview of all six moods.
+- **Exceptions:** the bigger bowls, each with a bowl picker (Regular removes it; hold ⌥ for GB); the always-ignored apps and processes with remove buttons; the current snoozes with their expiry and a cancel button; and **Forget what's usual…**, which clears the learned usual usage after a confirmation.
 
 Bowl labels are dog words; while ⌥ is held they show the memory limit instead. In the ⋯ menu these are native alternate items (`modifierKeyAlternate`, macOS 15+) that swap live while the menu is open; on macOS 14 only an ⌥ held when the menu opens counts. A row whose bowl is not Regular adds "· Big bowl" to its memory subtitle.
 
@@ -259,10 +331,11 @@ protocol Skin {
     func portrait(for mood: DogMood) -> NSImage        // large art for the popover header
     var iconArt: NSImage { get }                       // art composed onto the app icon
     var barkSoundName: String { get }
+    var extraBarkLines: [String] { get }               // breed lines added to the bark banks (default none)
 }
 ```
 
-Four skins, in picker order:
+Four skins, in picker order (Settings calls the picker **Breed**; the names shown are Classic, 8-bit classic, Pixel pup and Shiba):
 
 - **SymbolSkin** (`symbol`, default) is the SF Symbols dog with a mood badge, composed in the 24×18-pt menu bar slot: dog at 11.5 pt semibold on the bottom edge, badge at 6.5 pt heavy in the opposite top corner. Frames are template images unless a mood has a coloured part; then ink follows `labelColor`. The bundled app icon is this dog (`dog.fill`, no badge).
 
@@ -279,13 +352,14 @@ Four skins, in picker order:
 - **PixelSkin** is drawn from ASCII pixel maps in code (`#` ink, `o` cutout, `r` red, `p` pink). These are rendered to `NSImage` at runtime with crisp edges, at 1× and 2×. Iterating on the art means editing text, with no art pipeline.
 - **ShibaSkin** is a vector head drawn with SwiftUI `Path`/`Canvas` and rendered with `ImageRenderer`.
 - Adding a skin is one new type; `SkinRegistry` lists them and Settings picks by `id`.
+- **Breed voices:** the two 8-bit skins and Shiba add a few lines to the CPU and memory bark banks; Classic uses only the default banks.
 - **Bark sound:** a bundled short `.caf` per skin, played with `NSSound`. The bundled `bark-pixel` and `bark-shiba` recordings (CC BY-SA 3.0, see README Credits) are used; the system "Funk" sound is only the fallback when a file is missing.
 
 ## 6. Persistence — `SettingsStore`
 
 Stored in `UserDefaults`, with Codable JSON for structured values:
 
-- sensitivity stop, or custom limits
+- sensitivity stop, or custom limits (every field of `Limits`; stored values without the strain fields decode them from Balanced)
 - rows shown (N)
 - skin id
 - mute flag
@@ -295,6 +369,8 @@ Stored in `UserDefaults`, with Codable JSON for structured values:
 - snoozes: `[EntityKey: Date]` — expired entries are pruned on load
 - bowls: `[EntityKey: Bowl]` — Regular is never stored
 - pause-until date
+
+Not in `UserDefaults`: the learned usual usage is a Codable JSON file at `~/Library/Application Support/woofWoofCPU/usual.json` (`UsualUsageStore`), because it is larger and written more often. It is saved at most every 5 min and on quit; a missing or corrupt file means starting empty. Ignores (§4.5) are kept in memory only.
 
 ## 7. Error handling
 
@@ -306,7 +382,9 @@ Stored in `UserDefaults`, with Codable JSON for structured values:
 | `responsibility_get_pid_responsible_for_pid` missing in a future macOS | `dlsym` returns nil → falls back to path and parent-chain grouping. |
 | Launch-at-login registration fails or needs approval | Settings shows the status from `SMAppService` and a button to open Login Items settings. |
 | Sound file missing | Falls back to the system "Funk" sound; logged. |
-| Clock jumps or sleep/wake | All breach timers reset. |
+| Clock jumps or sleep/wake | All breach timers reset; Ignores are kept. |
+| `usual.json` missing or corrupt | The dog starts with nothing learned; it never crashes. |
+| A machine-state reading fails | Memory pressure reads as normal, battery as false and CPU busy as 0, so a failed reading never causes strain. |
 
 Logging uses `os.Logger` with subsystem `com.woofwoofcpu`. There is no telemetry.
 
@@ -317,15 +395,18 @@ Logging uses `os.Logger` with subsystem `com.woofwoofcpu`. There is no telemetry
 - CPU % from Mach-time deltas, including timebase conversion.
 - Identity: a reused PID with a different start time is a new process and doesn't inherit history.
 - Grouping: path → outermost `.app`; responsible PID preferred; parent-chain fallback; standalone; self and `kernel_task` excluded; app values summed.
-- `BreachTracker`: start, hysteresis band, end after 3 calm ticks, progress, wake reset, spikes shorter than the window never reach 1.
-- `MoodEngine`: every transition in §4.5, once-per-breach alerting, sulk on dismiss, proud timeout, pause.
-- Sensitivity table mapping and the custom-limits override.
+- `HostCPUCalculator`: first tick 0, deltas, counter wrap → 0. A smoke test asserts sane ranges from `LiveMachineStateSource` on the test machine.
+- `Judge`: every sensitivity stop's numbers; strain and culprit per resource, including bowl, share of load, usual suppression, the continuing ×0.9, runaway per process, battery/Low Power halving, and the worked example in §4.4.
+- `UsualUsage`: decay, warm-up, the learned threshold, the usual-high floor (≥ 1.25 × mean), skipping big gaps, prune, Codable round-trip, a corrupt file giving an empty result.
+- `BreachTracker`: start, per-reason clocks and progress, the clock stopping while calm, end after 60 s calm at short and long tick intervals, wake reset, restart on unmute, spikes shorter than the window never reach 1.
+- `MoodEngine`: every transition in §4.5, once-per-breach alerting, sulk on dismiss, proud timeout, pause, Ignore surviving a dip, sleep and pause and expiring after 10 calm minutes.
+- Sensitivity table mapping, the custom-limits override and decoding of old stored custom limits.
 - Ignore, snooze and always-ignore muting, and snooze expiry.
 - `ProcessActions` with a fake signaller: quit → kill escalation, other-user disabling, error mapping.
 
 **App-level (manual checklist, run before calling v1 done):**
 
-- `scripts/hog.sh cpu` and `scripts/hog.sh mem` drive the dog through every mood on the Paranoid setting.
+- `scripts/hog.sh cpu` and `scripts/hog.sh mem` drive the dog through every mood on the Paranoid setting; `bin/miawMiawCPU` covers the strain scenarios (runaway, CPU strain, memory strain, Ignore, snooze end) listed in `docs/manual-checks.md`.
 - Quit and ⌥Kill work on an app row and on a drilled-down helper process.
 - The popover shows and works over a full-screen app and on another Space.
 - Light and dark menu bars, both skins.
@@ -334,13 +415,16 @@ Logging uses `os.Logger` with subsystem `com.woofwoofcpu`. There is no telemetry
 
 ## 9. Funny copy (starter bank)
 
-Copy is kept in `Popover/Lines.swift`, keyed by resource × mood:
+Copy is kept in `Popover/Lines.swift`, keyed by resource × mood; the full banks and the voice rules are in `docs/voice.md`. The starter lines:
 
+- **CPU, growling:** "Grrr… {app} is getting the zoomies." · "Grrr. {app}: {value} for {duration}."
 - **CPU, barking:** "{app} is chewing all the CPU!" · "WOOF! {app} won't stop zooming around!" · "{app} has the zoomies. {value} for {duration}."
 - **Memory, barking:** "{app} is hoarding all the kibble ({value})!" · "{app} buried {value} of bones and won't share."
+- **Runaway (growling or barking):** "{app} has a process stuck chewing one core." · "One of {app}'s helpers won't stop spinning."
+- **Strain line:** plain and fixed, never randomised (§5.2).
 - **Sulking:** "Fine. I'll just keep an eye on {app}. 🙄"
 - **Proud:** "Good human. 🦴" · "Bad app chased off!"
-- **Napping (list mode header):** "All quiet. Zzz…"
+- **Napping (list mode header):** "All quiet. Zzz…" (seeded by the hours since the reference date, so the line changes hourly; night, morning and rare lines are picked by the clock)
 
 ## 10. Risks and open items
 
@@ -348,7 +432,11 @@ Copy is kept in `Popover/Lines.swift`, keyed by resource × mood:
 - **Private grouping API:** `responsibility_get_pid_responsible_for_pid` is undocumented. It's mitigated by the `dlsym` lookup with fallbacks, and it's acceptable for an unsandboxed app.
 - **Popover position in full-screen** may need tuning per display setup. This is verified in the manual checklist.
 - **Art and sound:** the v1 pixel and Shiba art are functional placeholders; refining them (especially Pixel) is an explicit follow-up.
-- **Memory thresholds** as a fraction of RAM may feel too high on 64 GB machines and too low on 8 GB ones. They will be tuned after real use; Advanced covers it meanwhile.
+- **Sensitivity numbers** (§4.4) are a starting point to tune after a week of real use; Advanced covers it meanwhile. The memory floor as a fraction of RAM scales across Macs, and strain gating keeps it from barking on a calm Mac.
+- **Load the dog can't see:** `cpuBusy` is whole-machine, so strain can come from root-owned processes with no readable culprit. The popover says the Mac is strained and nothing barks (§5.2).
+- **Usual usage can hide real trouble:** an app that is always heavy is never blamed on the strain path. Runaway (§4.4) is the backstop for CPU; for memory, Forget what's usual resets the baseline.
+- **Self-cost:** machine state and usual-usage recording add work each tick; the < 1% budget is rechecked in the manual checks.
+- **No new private API:** machine state uses `sysctl`, IOKit power-source and Mach host calls from public headers; the one private grouping symbol (§4.1) is unchanged.
 
 ## 11. Later (not v1)
 
