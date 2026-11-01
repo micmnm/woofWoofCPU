@@ -8,9 +8,9 @@ import Testing
             [raw(10, name: "node", path: "/usr/local/bin/node", cpuNanos: 0)],
             [raw(10, name: "node", path: "/usr/local/bin/node", cpuNanos: 4_000_000_000)],
         ])
-        let sampler = Sampler(source: source, grouper: AppGrouper(selfPID: 1, currentUID: 501, appInfo: StubAppInfo()))
+        let sampler = Sampler(source: source, grouper: AppGrouper(selfPID: 1, currentUID: 501, appInfo: StubAppInfo()), machine: FakeMachineSource())
         _ = await sampler.sample(now: 0)
-        let entities = await sampler.sample(now: 2)
+        let entities = await sampler.sample(now: 2).entities
         #expect(entities.count == 1)
         #expect(entities.first?.cpuPercent == 200)
     }

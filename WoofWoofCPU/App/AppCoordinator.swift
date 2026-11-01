@@ -101,7 +101,7 @@ final class AppCoordinator {
         }
         let now = SystemInfo.uptime
         let sampled = await sampler.sample(now: now)
-        apply(sampled, now: now)
+        apply(sampled.entities, now: now)
     }
 
     func apply(_ sampled: [Entity], now: TimeInterval) {

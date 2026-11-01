@@ -8,7 +8,7 @@ let package = Package(
         .library(name: "WoofCore", targets: ["WoofCore"]),
     ],
     targets: [
-        .target(name: "WoofCore"),
+        .target(name: "WoofCore", linkerSettings: [.linkedFramework("IOKit")]),
         .testTarget(name: "WoofCoreTests", dependencies: ["WoofCore"]),
     ]
 )

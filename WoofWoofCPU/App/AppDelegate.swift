@@ -27,7 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = SettingsStore()
         let sampler = Sampler(
             source: LibprocProcessSource(),
-            grouper: AppGrouper(selfPID: getpid(), currentUID: getuid(), appInfo: BundleAppInfoProvider())
+            grouper: AppGrouper(selfPID: getpid(), currentUID: getuid(), appInfo: BundleAppInfoProvider()),
+            machine: LiveMachineStateSource()
         )
         // ProcessActions is only driven from the popover, i.e. on the main thread.
         let signaller = PosixSignaller(quitApp: { pid in

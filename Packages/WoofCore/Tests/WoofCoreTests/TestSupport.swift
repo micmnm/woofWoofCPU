@@ -43,4 +43,12 @@ final class FakeSource: ProcessSource, @unchecked Sendable {
     func snapshot() -> [RawProcess] { frames.isEmpty ? [] : frames.removeFirst() }
 }
 
+final class FakeMachineSource: MachineStateSource, @unchecked Sendable {
+    var states: [MachineState]
+    private(set) var resets = 0
+    init(_ states: [MachineState] = [.calm()]) { self.states = states }
+    func read() -> MachineState { states.count > 1 ? states.removeFirst() : states[0] }
+    func reset() { resets += 1 }
+}
+
 let gb: UInt64 = 1 << 30
