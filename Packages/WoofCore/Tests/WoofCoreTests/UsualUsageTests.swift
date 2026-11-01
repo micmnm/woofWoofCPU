@@ -31,16 +31,15 @@ import Testing
 
     @Test func noisyValueUsesTwoSigma() throws {
         var usual = UsualUsage()
-        // The mean starts at the first sample and moves with a 3-day half-life, so noise needs days to show.
-        learn(&usual, hours: 14 * 24, tick: 3_600) { $0 % 2 == 0 ? 0 : 100 }
+        learn(&usual, hours: 3) { $0 % 2 == 0 ? 0 : 100 }
         let high = try #require(usual.usualHigh(key, .cpu))
         #expect(high > 125)
     }
 
     @Test func decayFollowsHalfLife() throws {
         var usual = UsualUsage()
-        learn(&usual, hours: 3) { _ in 100 }
-        learn(&usual, hours: 72, tick: 3_600, from: t0.addingTimeInterval(4 * 3_600)) { _ in 200 }
+        learn(&usual, hours: 30 * 24, tick: 3_600) { _ in 100 }
+        learn(&usual, hours: 72, tick: 3_600, from: t0.addingTimeInterval(31 * 86_400)) { _ in 200 }
         #expect(abs(try #require(usual.mean(key, .cpu)) - 150) < 5)
     }
 

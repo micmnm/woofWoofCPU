@@ -24,7 +24,7 @@ public struct UsualUsage: Codable, Equatable, Sendable {
     /// Gaps longer than `maxElapsed` (sleep, a stalled tick) are skipped rather than weighted.
     public mutating func record(_ entities: [Entity], elapsed: TimeInterval, maxElapsed: TimeInterval, at date: Date) {
         guard elapsed > 0, elapsed <= maxElapsed else { return }
-        let alpha = 1 - exp(-log(2) * elapsed / Self.halfLife)
+        let decay = 1 - exp(-log(2) * elapsed / Self.halfLife)
         for entity in entities {
             for resource in Resource.allCases {
                 let x = entity.value(for: resource)
@@ -33,10 +33,12 @@ public struct UsualUsage: Codable, Equatable, Sendable {
                     stats[slot] = Stat(mean: x, variance: 0, observed: elapsed, lastSeen: date)
                     continue
                 }
+                stat.observed += elapsed
+                // Warm-up: a plain time-weighted mean until the history outgrows the half-life window.
+                let alpha = max(decay, elapsed / stat.observed)
                 let d = x - stat.mean
                 stat.mean += alpha * d
                 stat.variance = (1 - alpha) * (stat.variance + alpha * d * d)
-                stat.observed += elapsed
                 stat.lastSeen = date
                 stats[slot] = stat
             }
