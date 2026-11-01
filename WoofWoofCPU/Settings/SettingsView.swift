@@ -66,10 +66,10 @@ struct GeneralSettings: View {
                     }
                 }
                 DisclosureGroup("Advanced") {
-                    LimitField(title: "CPU: app uses more than (% of one core)", value: limitBinding(\.cpu.threshold, scale: 1, minShown: 5))
-                    LimitField(title: "for", unit: "minutes", value: limitBinding(\.cpu.window, scale: 60, minShown: 0.5))
-                    LimitField(title: "Memory: app holds more than", unit: "GB", value: limitBinding(\.memory.threshold, scale: Self.fractionPerGB, minShown: 0.25, maxStored: 1))
-                    LimitField(title: "for", unit: "minutes", value: limitBinding(\.memory.window, scale: 60, minShown: 0.5))
+                    LimitField(title: "CPU: app uses more than (% of one core)", spoken: "CPU limit, percent of one core", value: limitBinding(\.cpu.threshold, scale: 1, minShown: 5))
+                    LimitField(title: "for", spoken: "CPU window, minutes", unit: "minutes", value: limitBinding(\.cpu.window, scale: 60, minShown: 0.5))
+                    LimitField(title: "Memory: app holds more than", spoken: "Memory limit, GB", unit: "GB", value: limitBinding(\.memory.threshold, scale: Self.fractionPerGB, minShown: 0.25, maxStored: 1))
+                    LimitField(title: "for", spoken: "Memory window, minutes", unit: "minutes", value: limitBinding(\.memory.window, scale: 60, minShown: 0.5))
                 }
             }
             Section {
@@ -177,6 +177,8 @@ private struct WindowReader: NSViewRepresentable {
 
 private struct LimitField: View {
     let title: String
+    /// VoiceOver label; the visible titles lean on their neighbours.
+    let spoken: String
     var unit = ""
     @Binding var value: Double
 
@@ -185,6 +187,7 @@ private struct LimitField: View {
             HStack {
                 TextField(title, value: $value, format: .number.precision(.fractionLength(0...1)))
                     .labelsHidden()
+                    .accessibilityLabel(spoken)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
                 Text(unit).foregroundStyle(.secondary)
