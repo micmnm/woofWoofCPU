@@ -67,6 +67,12 @@ public struct WatchPipeline: Sendable {
         return Step(mood: engine.mood, breaches: lastBreaches, newAlerts: alerts, strain: lastStrain)
     }
 
+    /// Ends this breach now; if the pair is still over on the next tick, a new one starts from zero.
+    public mutating func endBreach(_ key: BreachKey) {
+        tracker.end(key)
+        lastBreaches.removeAll { $0.key == key }
+    }
+
     /// After sleep/wake or a clock jump: no time spent asleep counts toward a bark.
     public mutating func resetTimers() {
         tracker.reset()

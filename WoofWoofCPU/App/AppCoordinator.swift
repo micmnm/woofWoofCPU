@@ -226,6 +226,7 @@ final class AppCoordinator {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 self.pipeline.resetTimers()
+                self.lastTickUptime = nil
                 Task {
                     await self.sampler.reset()
                     self.startLoop()
@@ -316,7 +317,7 @@ final class AppCoordinator {
         settings.setBowl(bowl, for: key)
         let limit = settings.limits(for: key).thresholdValue(for: .memory, physicalMemory: SystemInfo.physicalMemory)
         for breach in breaches where breach.key == BreachKey(entity: key, resource: .memory) && breach.lastValue <= limit {
-            pipeline.engine.ignore(breach.key, now: SystemInfo.uptime)
+            pipeline.endBreach(breach.key)
         }
         reevaluate()
     }

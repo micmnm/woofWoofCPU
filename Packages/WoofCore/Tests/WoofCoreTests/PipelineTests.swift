@@ -56,6 +56,19 @@ import Testing
     /// 20 helpers totalling 300% CPU and 2.4 GB.
     let browser = app(cpu: Array(repeating: 15, count: 20), memory: 24 * gb / 10)
 
+    @Test func endBreachDropsItAndAStillOverValueStartsAfresh() {
+        var pipeline = WatchPipeline()
+        for t in stride(from: 0.0, through: 30, by: 2) { _ = run(&pipeline, cpu: 120, at: t) }
+        let key = BreachKey(entity: entity("yes").key, resource: .cpu)
+        let old = run(&pipeline, cpu: 120, at: 32).breaches[0]
+        pipeline.endBreach(key)
+        #expect(pipeline.reevaluate(isMuted: { _ in false }, paused: false, now: 33).breaches.isEmpty)
+        let fresh = run(&pipeline, cpu: 120, at: 34).breaches
+        #expect(fresh.map(\.key) == [key])
+        #expect(fresh[0].id != old.id)
+        #expect(fresh[0].progress == 0)
+    }
+
     @Test func calmMacBusyBrowserNeverBarks() {
         #expect(alertTimes([browser], machine: .calm(), until: 1200).isEmpty)
     }

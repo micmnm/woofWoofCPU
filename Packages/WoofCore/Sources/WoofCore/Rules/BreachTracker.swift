@@ -123,6 +123,10 @@ public struct BreachTracker: Equatable, Sendable {
         }
     }
 
+    public mutating func end(_ key: BreachKey) {
+        states[key] = nil
+    }
+
     public mutating func reset() {
         states = [:]
     }
