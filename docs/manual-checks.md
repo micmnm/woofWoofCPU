@@ -6,6 +6,8 @@ The app target has no UI tests. Run these on the installed app (`make install`, 
 
 Verified on screen during development: sniffing → growling → red barking dog with no popover; click opens the alert popover; dismiss → sulking; crisp Symbol and Pixel symbol skins on a 1× display; idle CPU 0.74 % (Release).
 
+The strain-aware barking items below have not been checked on screen yet: the strain line, no-culprit header, sparkline bar, Forget what's usual dialog, new copy and breed lines.
+
 Still to check by hand:
 - [ ] Breed change in Settings while watching is paused reaches the menu bar dog.
 - [ ] Launch at login: enable, approve in System Settings if asked, log out and in; switching it off while approval is pending works.
