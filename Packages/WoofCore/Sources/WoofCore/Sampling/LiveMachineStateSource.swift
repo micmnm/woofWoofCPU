@@ -5,6 +5,8 @@ import os
 
 public final class LiveMachineStateSource: MachineStateSource, @unchecked Sendable {
     private let cpu = OSAllocatedUnfairLock(initialState: HostCPUCalculator())
+    /// Each `mach_host_self()` call adds a port reference, so take one for the source's lifetime.
+    private let host = mach_host_self()
 
     public init() {}
 
@@ -27,7 +29,7 @@ public final class LiveMachineStateSource: MachineStateSource, @unchecked Sendab
         var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size)
         let status = withUnsafeMutablePointer(to: &load) {
             $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count)
+                host_statistics(host, HOST_CPU_LOAD_INFO, $0, &count)
             }
         }
         guard status == KERN_SUCCESS else { return 0 }
