@@ -117,7 +117,7 @@ Worked example (user's Air, Balanced): memory pressure goes to critical, and the
   - If several apply, use the first in that order.
 - **No culprit:** strained but nobody to blame (all apps within their usual, or the load is in processes the dog can't see). The dog stays napping/sniffing; nothing barks. The funny line becomes, e.g., "Nobody's misbehaving. {app} just eats the most." above the strain line (list mode only). Exact copy lives in `docs/voice.md`.
 - **Runaway copy** joins the bank, e.g. "{app} has a process stuck chewing one core." and "One of {app}'s helpers won't stop spinning."
-- **Sparkline limit line:** the dashed line shows the entity's current culprit threshold (floor × bowl, or the CPU minimum). It is omitted when the Mac isn't strained on that resource and the reason isn't runaway.
+- **Sparkline limit line:** the dashed line shows the entity's current culprit threshold (floor × bowl, or the CPU minimum). It is omitted when the Mac isn't strained on that resource, and for a runaway breach (the history holds the app's summed CPU).
 
 ### 3.8 Mood
 

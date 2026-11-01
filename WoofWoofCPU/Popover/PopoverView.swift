@@ -75,7 +75,13 @@ struct PopoverView: View {
         if coordinator.settings.isPaused(now: Date()) { return Lines.paused }
         let top = coordinator.headlineEntity()
         let resource = top?.breach.key.resource
-        let value = top.map { Formatting.value($0.breach.lastValue, for: $0.breach.key.resource) } ?? ""
+        let value = top.map { top in
+            // Runaway copy names the stuck process, not the app's total.
+            let shown = top.breach.reason == .runaway
+                ? top.entity.members.map(\.cpuPercent).max() ?? top.breach.lastValue
+                : top.breach.lastValue
+            return Formatting.value(shown, for: top.breach.key.resource)
+        } ?? ""
         let duration = top.map { Formatting.duration($0.breach.overTime) } ?? ""
         let now = Date()
         return Lines.line(
@@ -97,6 +103,10 @@ struct PopoverView: View {
             return until == .distantFuture ? "Off duty until you resume" : "Off duty until \(until.formatted(date: .omitted, time: .shortened))"
         }
         guard let top = coordinator.headlineEntity() else { return nil }
+        if top.breach.reason == .runaway {
+            let saving = coordinator.machine.onBattery || coordinator.machine.lowPowerMode
+            return Formatting.runawayLimit(coordinator.settings.limits(for: top.entity.key), saving: saving)
+        }
         return Formatting.limit(coordinator.settings.limits(for: top.entity.key), top.breach.key.resource)
     }
 

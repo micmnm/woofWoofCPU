@@ -103,7 +103,8 @@ struct EntityRow: View {
 
     /// The bar this row is judged against right now; none while the Mac isn't strained on it.
     private var sparklineLimit: Double? {
-        if resource == .cpu, breach?.reason == .runaway { return Judge.runawayCPU }
+        // History holds the app's summed CPU, which a per-process runaway bar doesn't fit.
+        if resource == .cpu, breach?.reason == .runaway { return nil }
         guard resource == .memory ? coordinator.strain.memory : coordinator.strain.cpu else { return nil }
         return coordinator.settings.limits(for: entity.key).thresholdValue(for: resource, physicalMemory: SystemInfo.physicalMemory)
     }

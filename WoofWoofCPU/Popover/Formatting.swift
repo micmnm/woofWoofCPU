@@ -23,6 +23,11 @@ enum Formatting {
         return "Barks at \(value(threshold, for: resource)) after \(duration(limits[resource].window))"
     }
 
+    /// On battery or in Low Power Mode the runaway window is halved, as in `Judge`.
+    static func runawayLimit(_ limits: Limits, saving: Bool) -> String {
+        "Barks after \(duration(saving ? limits.runawayWindow / 2 : limits.runawayWindow)) stuck on one core"
+    }
+
     /// Dog words normally; the memory limit it allows while ⌥ is held.
     static func bowl(_ bowl: Bowl, shared limits: Limits, technical: Bool) -> String {
         let detail: String

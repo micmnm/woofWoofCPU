@@ -146,6 +146,7 @@ Each skin may add a few lines to the bark banks. Unknown skins use only the defa
 | Skin names | Symbol dog / Pixel symbol dog | Classic / 8-bit classic |
 | Exceptions | No snoozes. | No snoozes right now. |
 | Popover subline | limit 1.6 GB for 5m | Barks at 1.6 GB after 5m (hidden while the strain line shows) |
+| Popover subline, runaway | — | Barks after 10m stuck on one core |
 | Disclosure, VoiceOver | Expand / Collapse | Show processes / Hide processes |
 | Header portrait | (no label) | "Dog is {mood}" |
 | Status item | (no label or tooltip) | "woofWoofCPU: barking at {app}" or "woofWoofCPU: {mood}" |
