@@ -111,8 +111,9 @@ import Testing
         #expect(try parse("demo spike") == .cpu(expected))
     }
 
-    @Test func demoRampClimbsFromTenToHundredOverFiveMinutes() throws {
-        let expected = CPUJob(cores: 2, load: 100, pattern: .ramp(from: 10), schedule: Schedule(delay: 0, duration: 300))
+    /// Two cores pass a 90% runaway at 45% load (≈ 2m20s in), leaving Paranoid's 3 min window time to bark.
+    @Test func demoRampClimbsFromTenToHundredOverSixMinutes() throws {
+        let expected = CPUJob(cores: 2, load: 100, pattern: .ramp(from: 10), schedule: Schedule(delay: 0, duration: 360))
         #expect(try parse("demo ramp") == .cpu(expected))
     }
 

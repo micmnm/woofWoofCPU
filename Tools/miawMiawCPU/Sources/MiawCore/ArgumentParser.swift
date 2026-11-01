@@ -36,7 +36,7 @@ public enum ArgumentParser {
         case "spike":
             return CPUJob(cores: 2, load: 100, pattern: .spikes(on: 30, off: 30), schedule: Schedule(delay: 0, duration: 360))
         case "ramp":
-            return CPUJob(cores: 2, load: 100, pattern: .ramp(from: 10), schedule: Schedule(delay: 0, duration: 300))
+            return CPUJob(cores: 2, load: 100, pattern: .ramp(from: 10), schedule: Schedule(delay: 0, duration: 360))
         default:
             throw UsageError("unknown demo '\(rest[0])' (try bark, spike or ramp)")
         }
@@ -151,9 +151,10 @@ public enum Usage {
                 [--spike-on DUR --spike-off DUR]         burst timing (default 20s on, 40s off)
           mem   --gb G [--for DUR]                       hold G gigabytes of touched memory (default 2m)
           demo  bark | spike | ramp                      presets on 2 cores:
-                                                           bark   100% for 4m — the dog barks
+                                                           bark   100% for 4m — barks on Paranoid (runaway after 3 min)
                                                            spike  30s bursts for 6m — too short to bark
-                                                           ramp   10% to 100% over 5m — sniff, growl, bark
+                                                           ramp   10% to 100% over 6m — sniff, growl, bark on Paranoid
+                                                         On Balanced the dog waits 10 min, so bark and ramp only sniff.
           help                                           show this text
 
         When (cpu and mem):

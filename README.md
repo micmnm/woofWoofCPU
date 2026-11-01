@@ -40,7 +40,7 @@ To see the dog bark quickly: set Settings → Sensitivity to **Paranoid** (a pro
     make miaw                        # builds bin/miawMiawCPU
     bin/miawMiawCPU demo bark        # 2 cores at 100% for 4 min: a runaway, so the dog barks on Paranoid (Balanced waits 10 min)
     bin/miawMiawCPU demo spike       # 30 s bursts for 6 min: too short to bark
-    bin/miawMiawCPU demo ramp        # 2 cores climbing from 10% to 100% over 5 min
+    bin/miawMiawCPU demo ramp        # 2 cores climbing from 10% to 100% over 6 min: sniff, growl, bark on Paranoid
 
 Or build your own: start in 30 s, ramp 4 cores from 20% to 90% for 3 min, three times, 10 min apart:
 
