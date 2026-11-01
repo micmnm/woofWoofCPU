@@ -8,6 +8,7 @@ final class PixelSkin: Skin {
     let displayName = "Pixel pup"
     let barkSoundName = "bark-pixel"
     let isPixelArt = true
+    let extraBarkLines = ["{app} TOOK {value}. GAME OVER?", "WARNING: {app} AT {value}."]
 
     private var frameCache: [DogMood: [NSImage]] = [:]
     private var portraitCache: [DogMood: NSImage] = [:]

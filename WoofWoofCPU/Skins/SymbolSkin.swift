@@ -5,7 +5,7 @@ import WoofCore
 @MainActor
 final class SymbolSkin: Skin {
     let id = "symbol"
-    let displayName = "Symbol dog"
+    let displayName = "Classic"
     let barkSoundName = "bark-pixel"
     let isPixelArt = false
 

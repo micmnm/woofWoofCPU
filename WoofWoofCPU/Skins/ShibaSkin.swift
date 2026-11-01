@@ -9,6 +9,7 @@ final class ShibaSkin: Skin {
     let displayName = "Shiba"
     let barkSoundName = "bark-shiba"
     let isPixelArt = false
+    let extraBarkLines = ["AAAA! {app}! AAAA!", "{app} is being SO much right now."]
 
     private var frameCache: [DogMood: [NSImage]] = [:]
     private var portraitCache: [DogMood: NSImage] = [:]

@@ -17,6 +17,8 @@ protocol Skin: AnyObject {
     var isPixelArt: Bool { get }
     /// Bundled sound resource name (without extension); falls back to a system sound if missing.
     var barkSoundName: String { get }
+    /// Breed-specific lines added to the CPU and memory bark banks.
+    var extraBarkLines: [String] { get }
 }
 
 extension Skin {
@@ -28,6 +30,7 @@ extension Skin {
     }
 
     var iconArt: NSImage { portrait(for: .napping) }
+    var extraBarkLines: [String] { [] }
 }
 
 @MainActor

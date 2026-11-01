@@ -66,16 +66,16 @@ struct GeneralSettings: View {
                     }
                 }
                 DisclosureGroup("Advanced") {
-                    LimitField(title: "CPU above (%)", value: limitBinding(\.cpu.threshold, scale: 1, minShown: 5))
-                    LimitField(title: "CPU for (minutes)", value: limitBinding(\.cpu.window, scale: 60, minShown: 0.5))
-                    LimitField(title: "Memory above (GB)", value: limitBinding(\.memory.threshold, scale: Self.fractionPerGB, minShown: 0.25, maxStored: 1))
-                    LimitField(title: "Memory for (minutes)", value: limitBinding(\.memory.window, scale: 60, minShown: 0.5))
+                    LimitField(title: "CPU: app uses more than (% of one core)", value: limitBinding(\.cpu.threshold, scale: 1, minShown: 5))
+                    LimitField(title: "for", unit: "minutes", value: limitBinding(\.cpu.window, scale: 60, minShown: 0.5))
+                    LimitField(title: "Memory: app holds more than", unit: "GB", value: limitBinding(\.memory.threshold, scale: Self.fractionPerGB, minShown: 0.25, maxStored: 1))
+                    LimitField(title: "for", unit: "minutes", value: limitBinding(\.memory.window, scale: 60, minShown: 0.5))
                 }
             }
             Section {
                 VStack(alignment: .leading) {
                     let pace = Self.paces[Int(paceValue.wrappedValue)]
-                    Text("Sniffing: \(pace.name)\(Text(optionKey.isOptionDown ? " · every \(Int(pace.seconds)) s" : "").foregroundStyle(.secondary))")
+                    Text("Patrol: \(pace.name)\(Text(optionKey.isOptionDown ? " · every \(Int(pace.seconds)) s" : "").foregroundStyle(.secondary))")
                         .font(.headline)
                     Slider(value: paceValue, in: 0...Double(Self.paces.count - 1), step: 1) {
                         EmptyView()
@@ -177,14 +177,18 @@ private struct WindowReader: NSViewRepresentable {
 
 private struct LimitField: View {
     let title: String
+    var unit = ""
     @Binding var value: Double
 
     var body: some View {
         LabeledContent(title) {
-            TextField(title, value: $value, format: .number.precision(.fractionLength(0...1)))
-                .labelsHidden()
-                .multilineTextAlignment(.trailing)
-                .frame(width: 80)
+            HStack {
+                TextField(title, value: $value, format: .number.precision(.fractionLength(0...1)))
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+                Text(unit).foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -195,7 +199,7 @@ struct DogSettings: View {
     var body: some View {
         let selected = SkinRegistry.skin(id: settings.skinID)
         Form {
-            Picker("Skin", selection: $settings.skinID) {
+            Picker("Breed", selection: $settings.skinID) {
                 ForEach(SkinRegistry.all, id: \.id) { skin in
                     Text(skin.displayName).tag(skin.id)
                 }
@@ -241,6 +245,7 @@ struct ExceptionSettings: View {
                             Text(Formatting.bowl(bowl, shared: settings.limits, technical: optionKey.isOptionDown)).tag(bowl)
                         }
                     }
+                    .help(identifier(key))
                 }
             }
             .help("Hold ⌥ to see memory limits")
@@ -250,7 +255,7 @@ struct ExceptionSettings: View {
                 }
                 ForEach(Array(settings.ignoreList).sorted(by: { label($0) < label($1) }), id: \.self) { key in
                     HStack {
-                        Text(label(key))
+                        Text(label(key)).help(identifier(key))
                         Spacer()
                         Button("Remove") { settings.removeFromIgnoreList(key) }
                     }
@@ -258,11 +263,11 @@ struct ExceptionSettings: View {
             }
             Section("Snoozed") {
                 if settings.snoozes.isEmpty {
-                    Text("No snoozes.").foregroundStyle(.secondary)
+                    Text("No snoozes right now.").foregroundStyle(.secondary)
                 }
                 ForEach(settings.snoozes.sorted(by: { $0.value < $1.value }), id: \.key) { key, until in
                     HStack {
-                        Text(label(key))
+                        Text(label(key)).help(identifier(key))
                         Spacer()
                         Text("until \(until.formatted(date: .abbreviated, time: .shortened))").foregroundStyle(.secondary)
                         Button("Cancel") { settings.cancelSnooze(key) }
@@ -283,10 +288,20 @@ struct ExceptionSettings: View {
         .onDisappear { optionKey.stop() }
     }
 
-    private func label(_ key: EntityKey) -> String {
+    private func identifier(_ key: EntityKey) -> String {
         switch key {
         case .app(let bundleID): bundleID
         case .process(let path): path
         }
+    }
+
+    /// The app's own name when it is installed; the bundle id otherwise.
+    private func label(_ key: EntityKey) -> String {
+        guard case .app(let bundleID) = key,
+              let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
+              let info = Bundle(url: url)?.infoDictionary,
+              let name = (info["CFBundleDisplayName"] ?? info["CFBundleName"]) as? String
+        else { return identifier(key) }
+        return name
     }
 }

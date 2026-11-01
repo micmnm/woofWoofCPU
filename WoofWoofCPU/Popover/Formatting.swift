@@ -20,7 +20,7 @@ enum Formatting {
 
     static func limit(_ limits: Limits, _ resource: Resource) -> String {
         let threshold = limits.thresholdValue(for: resource, physicalMemory: SystemInfo.physicalMemory)
-        return "limit \(value(threshold, for: resource)) for \(duration(limits[resource].window))"
+        return "Barks at \(value(threshold, for: resource)) after \(duration(limits[resource].window))"
     }
 
     /// Dog words normally; the memory limit it allows while ⌥ is held.
@@ -34,7 +34,7 @@ enum Formatting {
             case .regular: return bowl.displayName
             case .big: detail = "a bit more"
             case .huge: detail = "lots more"
-            case .bottomless: detail = "never mind memory"
+            case .bottomless: detail = "never bark about memory"
             }
         }
         return "\(bowl.displayName) — \(detail)"

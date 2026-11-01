@@ -31,6 +31,12 @@ final class StatusItemController: NSObject {
         }
     }
 
+    /// Plain-voice description for VoiceOver and the hover tooltip.
+    func setDescription(_ text: String) {
+        button?.setAccessibilityLabel(text)
+        button?.toolTip = text
+    }
+
     /// Screen rect of the dog, used to anchor the popover. Nil if the menu bar isn't on screen.
     var anchorRect: NSRect? {
         guard let button, let window = button.window, window.isVisible else { return nil }

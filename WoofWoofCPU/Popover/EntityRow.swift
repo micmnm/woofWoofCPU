@@ -21,7 +21,7 @@ struct EntityRow: View {
                         Image(systemName: expanded ? "chevron.down" : "chevron.right").frame(width: 10)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(expanded ? "Collapse" : "Expand")
+                    .accessibilityLabel(expanded ? "Hide processes" : "Show processes")
                 } else {
                     Spacer().frame(width: 10)
                 }
@@ -45,10 +45,10 @@ struct EntityRow: View {
                         Button("Snooze \(duration.displayName)") { coordinator.snooze(entity, for: duration) }
                     }
                     Divider()
-                    Button("Ignore this time") { coordinator.ignore(entity) }
+                    Button("Ignore for now") { coordinator.ignore(entity) }
                     Button("Always ignore") { coordinator.alwaysIgnore(entity) }
                     Divider()
-                    Menu("Bowl") {
+                    Menu("Bowl size") {
                         ForEach(Bowl.allCases, id: \.self) { bowlItem($0) }
                     }
                 } label: {
@@ -171,7 +171,7 @@ struct QuitButton: View {
         .tint(optionDown ? .red : .accentColor)
         .controlSize(compact ? .mini : .small)
         .disabled(!enabled)
-        .help(enabled ? (optionDown ? "Force kill immediately" : "Ask it to quit (hold ⌥ to Kill)") : "Owned by another user or the system")
+        .help(enabled ? (optionDown ? "Force quit now. Unsaved work is lost." : "Ask it to quit (hold ⌥ to Kill)") : "Belongs to the system or another user")
     }
 }
 
@@ -186,9 +186,9 @@ struct StatusText: View {
         switch status {
         case .askingPolitely: "Asking politely…"
         case .stillAlive: "Still here — hold ⌥ to Kill"
-        case .notAllowed: "Not allowed (owned by another user)"
+        case .notAllowed: "Not allowed: it belongs to another user"
         case .gone: "Already gone"
-        case .failed(let code): "Failed (error \(code))"
+        case .failed(let code): "Couldn't quit it (error \(code))"
         }
     }
 

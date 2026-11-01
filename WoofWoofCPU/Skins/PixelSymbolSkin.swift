@@ -5,9 +5,10 @@ import WoofCore
 @MainActor
 final class PixelSymbolSkin: Skin {
     let id = "symbolPixel"
-    let displayName = "Pixel symbol dog"
+    let displayName = "8-bit classic"
     let barkSoundName = "bark-pixel"
     let isPixelArt = true
+    let extraBarkLines = ["{app} TOOK {value}. GAME OVER?", "WARNING: {app} AT {value}."]
 
     /// Grid widths; heights are two thirds of these.
     static let fineGrid = 54

@@ -6,9 +6,9 @@ public enum SnoozeDuration: String, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .fifteenMinutes: "15 minutes"
-        case .oneHour: "1 hour"
-        case .untilTomorrow: "Until tomorrow"
+        case .fifteenMinutes: "for 15 minutes"
+        case .oneHour: "for 1 hour"
+        case .untilTomorrow: "until tomorrow"
         }
     }
 

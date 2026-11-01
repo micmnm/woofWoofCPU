@@ -120,6 +120,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshDog() {
         animator.update(mood: coordinator.mood, skin: coordinator.skin)
         iconUpdater.apply(coordinator.skin)
+        let mood = coordinator.mood
+        if mood == .barking, let app = coordinator.headlineEntity()?.entity.displayName {
+            status.setDescription("woofWoofCPU: barking at \(app)")
+        } else {
+            status.setDescription("woofWoofCPU: \(mood.rawValue)")
+        }
     }
 
     private func makeMenu() -> NSMenu {

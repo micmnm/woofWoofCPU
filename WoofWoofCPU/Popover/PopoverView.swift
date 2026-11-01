@@ -49,10 +49,14 @@ struct PopoverView: View {
                 .resizable()
                 .frame(width: size.width, height: size.height)
                 .frame(width: 64, height: 48)
+                .accessibilityLabel("Dog is \(coordinator.mood.rawValue)")
             VStack(alignment: .leading, spacing: 2) {
                 Text(headline).font(.system(size: 13, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
-                if let line = Lines.strainLine(strain, machine: coordinator.machine) { Text(line).font(.system(size: 11)) }
-                if let subline { Text(subline).font(.system(size: 11)).foregroundStyle(.secondary) }
+                if let line = Lines.strainLine(strain, machine: coordinator.machine) {
+                    Text(line).font(.system(size: 11))
+                } else if let subline {
+                    Text(subline).font(.system(size: 11)).foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -68,10 +72,12 @@ struct PopoverView: View {
             let busiest = coordinator.entities.max { $0.value(for: resource) < $1.value(for: resource) }
             if let line = Lines.noCulpritLine(strain: strain, topApp: busiest?.displayName) { return line }
         }
+        if coordinator.settings.isPaused(now: Date()) { return Lines.paused }
         let top = coordinator.headlineEntity()
         let resource = top?.breach.key.resource
         let value = top.map { Formatting.value($0.breach.lastValue, for: $0.breach.key.resource) } ?? ""
         let duration = top.map { Formatting.duration($0.breach.overTime) } ?? ""
+        let now = Date()
         return Lines.line(
             mood: coordinator.mood,
             resource: resource,
@@ -79,7 +85,10 @@ struct PopoverView: View {
             app: top?.entity.displayName,
             value: value,
             duration: duration,
-            seed: top?.breach.id ?? 0
+            // No breach: change the napping line hourly.
+            seed: top?.breach.id ?? Int(now.timeIntervalSinceReferenceDate / 3600),
+            skinID: coordinator.skin.id,
+            date: now
         )
     }
 
