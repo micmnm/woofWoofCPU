@@ -18,6 +18,7 @@ public struct MoodEngine: Sendable {
     /// Ignored key → last uptime it had a breach (or the app was paused).
     private var ignored: [BreachKey: TimeInterval] = [:]
     private var proudUntil: TimeInterval?
+    private var wasPaused = false
 
     public init() {}
 
@@ -30,12 +31,17 @@ public struct MoodEngine: Sendable {
         now: TimeInterval
     ) -> [Breach] {
         if paused {
-            ignored = ignored.mapValues { _ in now }
+            wasPaused = true
             openAlertIDs = []
             sulkingIDs = []
             proudUntil = nil
             mood = .napping
             return []
+        }
+        // The pause stops ticks, so its length counts as calm only from resume.
+        if wasPaused {
+            wasPaused = false
+            ignored = ignored.mapValues { _ in now }
         }
 
         ignored = ignored.filter { now - $0.value < Self.ignoreCooldown }

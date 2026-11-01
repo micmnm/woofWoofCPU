@@ -121,8 +121,8 @@ import Testing
     @Test func ignoreSurvivesPause() {
         var engine = MoodEngine()
         engine.ignore(key, now: 0)
-        for t in stride(from: 2.0, through: 3602, by: 300) { _ = eval(&engine, [], at: t, paused: true) }
-        _ = eval(&engine, [], at: 3604)
+        _ = eval(&engine, [], at: 2, paused: true)
+        _ = eval(&engine, [], at: 3602)
         #expect(engine.isIgnored(key))
     }
 
