@@ -6,6 +6,7 @@ public struct WatchPipeline: Sendable {
         public let mood: DogMood
         public let breaches: [Breach]
         public let newAlerts: [Breach]
+        public let strain: Strain
     }
 
     public private(set) var tracker = BreachTracker()
@@ -13,14 +14,16 @@ public struct WatchPipeline: Sendable {
     public private(set) var history = UsageHistory()
     private var lastBreaches: [Breach] = []
     private var mutedLastTick: Set<EntityKey> = []
+    private var lastStrain = Strain(memory: false, cpu: false)
 
     public init() {}
 
     public mutating func step(
         entities: [Entity],
+        machine: MachineState,
         limits: Limits,
         bowls: [EntityKey: Bowl] = [:],
-        physicalMemory: UInt64,
+        usual: UsualUsage,
         isMuted: (EntityKey) -> Bool,
         paused: Bool,
         now: TimeInterval
@@ -31,12 +34,18 @@ public struct WatchPipeline: Sendable {
         mutedLastTick = muted
         // Pausing drops running timers so resuming never barks instantly.
         if paused { tracker.reset() }
+        let strain = Judge.strain(machine, limits)
         let breaches = paused
             ? []
-            : tracker.update(entities: entities, limits: limits, bowls: bowls, physicalMemory: physicalMemory, now: now)
+            : tracker.update(entities: entities, now: now) { entity, resource, continuing in
+                Judge.verdicts(
+                    entity, resource, machine: machine, strain: strain, limits: limits,
+                    bowl: bowls[entity.key] ?? .regular, usual: usual, continuing: continuing)
+            }
         lastBreaches = breaches
+        lastStrain = strain
         let alerts = engine.evaluate(breaches: breaches, isMuted: isMuted, paused: paused, now: now)
-        return Step(mood: engine.mood, breaches: breaches, newAlerts: alerts)
+        return Step(mood: engine.mood, breaches: breaches, newAlerts: alerts, strain: strain)
     }
 
     /// Re-runs only the mood engine on the last tick's breaches, so a snooze/ignore/pause shows up
@@ -55,7 +64,7 @@ public struct WatchPipeline: Sendable {
         }
         mutedLastTick = mutedLastTick.subtracting(keys).union(muted)
         let alerts = engine.evaluate(breaches: lastBreaches, isMuted: isMuted, paused: paused, now: now)
-        return Step(mood: engine.mood, breaches: lastBreaches, newAlerts: alerts)
+        return Step(mood: engine.mood, breaches: lastBreaches, newAlerts: alerts, strain: lastStrain)
     }
 
     /// After sleep/wake or a clock jump: no time spent asleep counts toward a bark.

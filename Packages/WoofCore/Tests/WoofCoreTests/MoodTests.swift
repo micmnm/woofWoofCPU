@@ -12,6 +12,7 @@ import Testing
             overTime: progress * 60,
             isOver: isOver,
             progress: progress,
+            reason: .strain,
             lastValue: 150
         )
     }

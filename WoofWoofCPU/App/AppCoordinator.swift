@@ -101,17 +101,18 @@ final class AppCoordinator {
         }
         let now = SystemInfo.uptime
         let sampled = await sampler.sample(now: now)
-        apply(sampled.entities, now: now)
+        apply(sampled.entities, machine: sampled.machine, now: now)
     }
 
-    func apply(_ sampled: [Entity], now: TimeInterval) {
+    func apply(_ sampled: [Entity], machine: MachineState, now: TimeInterval) {
         let date = Date()
         settings.pruneExpired(now: date)
         let step = pipeline.step(
             entities: sampled,
+            machine: machine,
             limits: settings.limits,
             bowls: settings.bowls,
-            physicalMemory: SystemInfo.physicalMemory,
+            usual: UsualUsage(),
             isMuted: { [settings] key in settings.isMuted(key, now: date) },
             paused: settings.isPaused(now: date),
             now: now

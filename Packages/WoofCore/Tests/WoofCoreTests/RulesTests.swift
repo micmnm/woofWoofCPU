@@ -65,11 +65,16 @@ import Testing
 }
 
 @Suite struct BreachTrackerTests {
-    let limits = Limits(cpu: Limit(threshold: 100, window: 60), memory: Limit(threshold: 0.5, window: 60))
-    let ram = 16 * gb
+    let yes = entity("yes")
 
+    /// Judges only (yes, CPU), with the given verdicts.
+    func tick(_ tracker: inout BreachTracker, _ verdicts: [Verdict], at now: Double) -> [Breach] {
+        tracker.update(entities: [yes], now: now) { _, resource, _ in resource == .cpu ? verdicts : [] }
+    }
+
+    /// Over (strain, 60 s window) while CPU is above 100%.
     func tick(_ tracker: inout BreachTracker, cpu: Double, at now: Double) -> [Breach] {
-        tracker.update(entities: [entity("yes", cpu: cpu)], limits: limits, physicalMemory: ram, now: now)
+        tick(&tracker, cpu > 100 ? [Verdict(reason: .strain, window: 60)] : [], at: now)
     }
 
     @Test func breachStartsAboveLimitAndProgressGrows() {
@@ -85,12 +90,16 @@ import Testing
         #expect(full[0].progress == 1)
     }
 
-    @Test func valueInsideHysteresisBandKeepsBreachAlive() {
+    @Test func continuingIsTrueOnceABreachExists() {
         var tracker = BreachTracker()
-        _ = tick(&tracker, cpu: 150, at: 0)
-        for t in stride(from: 2.0, through: 20, by: 2) {
-            #expect(tick(&tracker, cpu: 95, at: t).count == 1)
+        var seen: [Bool] = []
+        let judge: (Entity, Resource, Bool) -> [Verdict] = { _, resource, continuing in
+            if resource == .cpu { seen.append(continuing) }
+            return resource == .cpu ? [Verdict(reason: .strain, window: 60)] : []
         }
+        _ = tracker.update(entities: [yes], now: 0, verdicts: judge)
+        _ = tracker.update(entities: [yes], now: 2, verdicts: judge)
+        #expect(seen == [false, true])
     }
 
     @Test func breachEndsAfterSixtySecondsCalmAtTwoSecondTicks() {
@@ -154,33 +163,15 @@ import Testing
     @Test func vanishedEntityEndsBreachImmediately() {
         var tracker = BreachTracker()
         _ = tick(&tracker, cpu: 150, at: 0)
-        #expect(tracker.update(entities: [], limits: limits, physicalMemory: ram, now: 2).isEmpty)
+        #expect(tracker.update(entities: [], now: 2) { _, _, _ in [Verdict(reason: .strain, window: 60)] }.isEmpty)
     }
 
-    @Test func memoryBreachUsesFractionOfRAM() {
+    @Test func breachesAreKeptPerResource() {
         var tracker = BreachTracker()
-        let hog = entity("hog", memory: 9 * gb) // > 50% of 16 GB
-        let breaches = tracker.update(entities: [hog], limits: limits, physicalMemory: ram, now: 0)
+        let breaches = tracker.update(entities: [yes], now: 0) { _, resource, _ in
+            resource == .memory ? [Verdict(reason: .strain, window: 60)] : []
+        }
         #expect(breaches.map(\.key.resource) == [.memory])
-    }
-
-    @Test func bowlRaisesOnlyThatEntitysMemoryLimit() {
-        var tracker = BreachTracker()
-        let fed = entity("fed", memory: 9 * gb) // over 8 GB, under the Big bowl's 12 GB
-        let hungry = entity("hungry", memory: 9 * gb)
-        let breaches = tracker.update(
-            entities: [fed, hungry], limits: limits, bowls: [fed.key: .big], physicalMemory: ram, now: 0
-        )
-        #expect(breaches.map(\.key.entity) == [hungry.key])
-    }
-
-    @Test func bottomlessBowlStillWatchesCPU() {
-        var tracker = BreachTracker()
-        let hog = entity("hog", cpu: 150, memory: 15 * gb)
-        let breaches = tracker.update(
-            entities: [hog], limits: limits, bowls: [hog.key: .bottomless], physicalMemory: ram, now: 0
-        )
-        #expect(breaches.map(\.key.resource) == [.cpu])
     }
 
     @Test func resetForgetsRunningBreaches() {
@@ -188,5 +179,34 @@ import Testing
         _ = tick(&tracker, cpu: 150, at: 0)
         tracker.reset()
         #expect(tick(&tracker, cpu: 150, at: 100)[0].progress == 0)
+    }
+
+    @Test func reasonsKeepTheirOwnClocks() {
+        var tracker = BreachTracker()
+        let runaway = Verdict(reason: .runaway, window: 600)
+        let strain = Verdict(reason: .strain, window: 180)
+        for t in stride(from: 0.0, to: 480, by: 10) { _ = tick(&tracker, [runaway], at: t) }
+        #expect(tick(&tracker, [runaway], at: 480)[0].progress == 0.8)
+        for t in stride(from: 490.0, to: 540, by: 10) {
+            #expect(tick(&tracker, [strain, runaway], at: t)[0].progress < 0.9)
+        }
+        let both = tick(&tracker, [strain, runaway], at: 540)[0]
+        #expect(both.progress == 0.9)
+        #expect(both.reason == .runaway)
+        #expect(both.overTime == 540)
+    }
+
+    @Test func reasonDroppingOutKeepsProgress() {
+        var tracker = BreachTracker()
+        let strain = Verdict(reason: .strain, window: 100)
+        let runaway = Verdict(reason: .runaway, window: 600)
+        for t in stride(from: 0.0, through: 70, by: 10) { _ = tick(&tracker, [strain], at: t) }
+        for t in stride(from: 80.0, through: 300, by: 10) {
+            let breach = tick(&tracker, [runaway], at: t)[0]
+            #expect(breach.progress == 0.7) // strain frozen at 70/100, runaway still below it
+            #expect(breach.reason == .strain)
+        }
+        let back = tick(&tracker, [strain], at: 310)[0]
+        #expect(back.overTime == 80) // only the 10 s since the last tick counts
     }
 }

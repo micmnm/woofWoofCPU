@@ -1,6 +1,6 @@
 import Foundation
 
-public enum BreachReason: String, Codable, Sendable {
+public enum BreachReason: String, CaseIterable, Codable, Sendable {
     case strain, runaway
 }
 

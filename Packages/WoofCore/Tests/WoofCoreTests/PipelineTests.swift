@@ -29,13 +29,77 @@ import Testing
 }
 
 @Suite struct WatchPipelineTests {
-    let limits = Sensitivity.paranoid.limits // CPU > 50% for 60 s
-    let ram = 16 * gb
+    let limits = Sensitivity.paranoid.limits // CPU > 50% for 60 s while strained
+    /// Both cores busy, so `yes` is the CPU culprit.
+    let strained = MachineState(
+        memoryPressure: .normal, thermal: .nominal, onBattery: false, lowPowerMode: false,
+        cpuBusy: 1, logicalCores: 2, physicalMemory: 16 * gb)
 
     func run(_ pipeline: inout WatchPipeline, cpu: Double, at now: Double,
              muted: Set<EntityKey> = [], paused: Bool = false) -> WatchPipeline.Step {
-        pipeline.step(entities: [entity("yes", cpu: cpu)], limits: limits, physicalMemory: ram,
+        pipeline.step(entities: [entity("yes", cpu: cpu)], machine: strained, limits: limits, usual: UsualUsage(),
                       isMuted: { muted.contains($0) }, paused: paused, now: now)
+    }
+
+    /// Balanced limits on an 8 GB Mac, 5 s ticks; returns the times alerts fired.
+    func alertTimes(_ entities: [Entity], machine: MachineState, until end: Double) -> [Double] {
+        var pipeline = WatchPipeline()
+        var times: [Double] = []
+        for t in stride(from: 0.0, through: end, by: 5) {
+            let step = pipeline.step(entities: entities, machine: machine, limits: Sensitivity.balanced.limits,
+                                     usual: UsualUsage(), isMuted: { _ in false }, paused: false, now: t)
+            if !step.newAlerts.isEmpty { times.append(t) }
+        }
+        return times
+    }
+
+    /// 20 helpers totalling 300% CPU and 2.4 GB.
+    let browser = app(cpu: Array(repeating: 15, count: 20), memory: 24 * gb / 10)
+
+    @Test func calmMacBusyBrowserNeverBarks() {
+        #expect(alertTimes([browser], machine: .calm(), until: 1200).isEmpty)
+    }
+
+    @Test func strainedMacBarksAtCulpritAfterWindow() {
+        var machine = MachineState.calm()
+        machine.memoryPressure = .warning
+        #expect(alertTimes([browser], machine: machine, until: 600) == [300])
+    }
+
+    @Test func stuckProcessBarksOnCalmMac() {
+        let stuck = app(cpu: [100] + Array(repeating: 10, count: 19), memory: 24 * gb / 10)
+        #expect(alertTimes([stuck], machine: .calm(), until: 900) == [600])
+    }
+
+    @Test func stepReportsTheMachineStrain() {
+        var pipeline = WatchPipeline()
+        let step = run(&pipeline, cpu: 0, at: 0)
+        #expect(step.strain == Strain(memory: false, cpu: true))
+        #expect(pipeline.reevaluate(isMuted: { _ in false }, paused: false, now: 1).strain == step.strain)
+    }
+
+    @Test func bowlRaisesOnlyThatEntitysMemoryLimit() {
+        var pipeline = WatchPipeline()
+        var machine = strained
+        machine.memoryPressure = .warning
+        let fed = entity("fed", memory: 9 * gb) // over 8 GB, under the Big bowl's 12 GB
+        let hungry = entity("hungry", memory: 9 * gb)
+        let step = pipeline.step(
+            entities: [fed, hungry], machine: machine,
+            limits: Limits(cpu: Limit(threshold: 100, window: 60), memory: Limit(threshold: 0.5, window: 60)),
+            bowls: [fed.key: .big], usual: UsualUsage(), isMuted: { _ in false }, paused: false, now: 0)
+        #expect(step.breaches.map(\.key.entity) == [hungry.key])
+    }
+
+    @Test func bottomlessBowlStillWatchesCPU() {
+        var pipeline = WatchPipeline()
+        var machine = strained
+        machine.memoryPressure = .warning
+        let hog = entity("hog", cpu: 150, memory: 15 * gb)
+        let step = pipeline.step(
+            entities: [hog], machine: machine, limits: limits, bowls: [hog.key: .bottomless], usual: UsualUsage(),
+            isMuted: { _ in false }, paused: false, now: 0)
+        #expect(step.breaches.map(\.key.resource) == [.cpu])
     }
 
     @Test func sustainedHogWalksThroughEveryMoodAndBarksOnce() {

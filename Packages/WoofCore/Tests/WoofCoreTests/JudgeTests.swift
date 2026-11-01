@@ -21,16 +21,6 @@ import Testing
 
     func bytes(_ gigabytes: Double) -> UInt64 { UInt64(gigabytes * Double(gb)) }
 
-    /// One app whose members run at the given CPU percents.
-    func app(cpu members: [Double] = [0], memory: UInt64 = 0) -> Entity {
-        Entity(
-            key: .process(path: "/usr/bin/app"), displayName: "app", bundlePath: nil, mainPID: nil,
-            members: members.enumerated().map { i, cpu in
-                sample(Int32(100 + i), cpu: cpu, memory: i == 0 ? memory : 0)
-            },
-            ownedByCurrentUser: true)
-    }
-
     /// Usual usage learned from `entity` held constant for 2.5 h of 5 s ticks.
     func learned(_ entity: Entity) -> UsualUsage {
         var usual = UsualUsage()
