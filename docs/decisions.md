@@ -27,7 +27,6 @@ Product and engineering decisions made while building v1 (2026-10-01 – 2026-10
 - The popover is a non-activating `NSPanel` at `.popUpMenu` level that joins all Spaces and full-screen apps; it is placed under the dog, never above the menu bar, and its list scrolls (expanded list capped at 30 entities).
 - Pixel symbol dog frames carry a 1× representation (27×18 grid) and a 2× one (54×36 grid); its portraits use the 54×36 grid at 1-pt cells so badges survive. Smooth skins scale portraits with interpolation, pixel skins without.
 - The app icon is the Pixel pup's Proud sprite in cream on a teal rounded square (tail dropped at 16 px); the in-app icon follows the selected skin; the Finder icon is never rewritten at runtime (it would break the code signature).
-- History was rewritten to the personal identity (micmnm@gmail.com) before the first push; the repo uses `gh` credentials for GitHub.
 
 - Bowls are factors of the shared memory limit (1.5×, 2×, none), not absolute GB, so they follow the sensitivity slider. Picking a bowl the app now fits under mutes the running memory breach immediately (as Ignore); otherwise the breach would linger through the 60 s calm period.
 

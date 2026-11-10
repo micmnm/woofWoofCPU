@@ -53,7 +53,7 @@ Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors 
 - A root `Makefile` (`make test`, `make build`, `make run`) exports `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`, so builds use Xcode's toolchain even while `xcode-select` still points at the Command Line Tools. Their Swift Testing macro plugin fails on multi-file test targets.
 - **Tests:** Swift Testing (`import Testing`, `@Test`, `#expect`).
 - **Agent app:** `LSUIElement = YES` (no Dock icon, no app menu).
-- **Terms:** free, closed source; © 2026 Mircea Militaru.
+- **Terms:** free, GPL-3.0; © 2026 Mircea Militaru. Issues welcome, pull requests not accepted.
 - **Distribution:** `make dist` builds an Apple silicon (arm64) Release app, ad-hoc signed and not notarized, keeps it and a drag-to-Applications disk image in `dist/` (`woofWoofCPU.app`, `woofWoofCPU-<version>.dmg`) and drops the build intermediates. The version comes from `MARKETING_VERSION` in `project.yml`.
 - **Signing:** automatic signing with the personal team ("Sign to Run Locally" is acceptable at first). Hardened runtime on, so notarization later is a config change rather than a rework.
 

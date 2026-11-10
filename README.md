@@ -24,7 +24,9 @@ The app is not notarized, so macOS blocks it on first launch. Open System Settin
 
 It needs no permissions: it only watches your own user's processes.
 
-woofWoofCPU is free to use. © 2026 Mircea Militaru ([micmnm](https://github.com/micmnm)), all rights reserved; the source is not published.
+woofWoofCPU is free to use. © 2026 Mircea Militaru ([micmnm](https://github.com/micmnm)), licensed under the [GNU GPL v3](LICENSE).
+
+Bug reports and ideas are welcome in [Issues](https://github.com/micmnm/woofWoofCPU/issues); pull requests are not accepted.
 
 ## Uninstall
 

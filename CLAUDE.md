@@ -32,7 +32,6 @@ After `make install`, relaunch: `pkill -x woofWoofCPU; open /Applications/woofWo
 - TDD for WoofCore and MiawCore changes (failing test first). The app target has no test target; verify UI work by building and, when visual, by rendering images or `screencapture -x` (works on this Mac; the display is 1×, 2560×1440).
 - Code comments: short, only what the code can't say. No history narration.
 - Commit messages: one line, no body, no trailers, no mention of Claude/Anthropic/model names.
-- Git identity for this repo is local: `micmnm@gmail.com`; GitHub auth for this repo goes through `gh` (account micmnm). Don't change it. Remote: `https://github.com/micmnm/woofWoofCPU` (private), branch `main`.
 - The spec (`docs/superpowers/specs/2026-10-01-woofwoofcpu-design.md`) is the authority; keep it in sync when behaviour changes.
 
 ## Gotchas

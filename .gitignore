@@ -31,7 +31,7 @@ dist/
 *.xcodeproj/
 
 # Personal Claude Code settings
-.claude/settings.local.json
+.claude/
 
 # Local scratch
 tmp/
