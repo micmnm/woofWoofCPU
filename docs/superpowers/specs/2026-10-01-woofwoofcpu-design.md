@@ -53,6 +53,8 @@ Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors 
 - A root `Makefile` (`make test`, `make build`, `make run`) exports `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`, so builds use Xcode's toolchain even while `xcode-select` still points at the Command Line Tools. Their Swift Testing macro plugin fails on multi-file test targets.
 - **Tests:** Swift Testing (`import Testing`, `@Test`, `#expect`).
 - **Agent app:** `LSUIElement = YES` (no Dock icon, no app menu).
+- **Terms:** free, closed source; © 2026 Mircea Militaru.
+- **Distribution:** `make dist` builds a universal (arm64 + x86_64) Release app, ad-hoc signed and not notarized, and zips it to `build/woofWoofCPU-<version>.zip`. The version comes from `MARKETING_VERSION` in `project.yml`.
 - **Signing:** automatic signing with the personal team ("Sign to Run Locally" is acceptable at first). Hardened runtime on, so notarization later is a config change rather than a rework.
 
 ### Repository layout
@@ -287,7 +289,7 @@ While the dog is still Barking, it barks again 10 s, 30 s and 90 s after the fir
 - AppKit `NSStatusItem` with an image-only button. SwiftUI `MenuBarExtra` was rejected: it can't animate the icon or open the popover programmatically.
 - `DogAnimator` cycles the current skin's frames for the current mood on a timer. Each mood has its own frame duration, e.g. Barking animates faster.
 - Template images (Symbol and Pixel skins) adapt to light and dark menu bars. Moods with a coloured part (growling, barking, proud) are non-template images; barking is all red.
-- Left-click toggles the popover: in alert mode while some entity is barking, otherwise in list mode. Right-click opens a small menu: Pause watching ▸, Mute, Settings…, Quit woofWoofCPU.
+- Left-click toggles the popover: in alert mode while some entity is barking, otherwise in list mode. Right-click opens a small menu: Pause watching ▸, Mute, Settings…, About woofWoofCPU (standard panel with the bark's CC BY-SA credit), Quit woofWoofCPU.
 
 ### 5.2 Popover — `PopoverPanel` + `PopoverView`
 
@@ -337,7 +339,7 @@ protocol Skin {
 
 Four skins, in picker order (Settings calls the picker **Breed**; the names shown are Classic, 8-bit classic, Pixel pup and Shiba):
 
-- **SymbolSkin** (`symbol`, default) is the SF Symbols dog with a mood badge, composed in the 24×18-pt menu bar slot: dog at 11.5 pt semibold on the bottom edge, badge at 6.5 pt heavy in the opposite top corner. Frames are template images unless a mood has a coloured part; then ink follows `labelColor`. The bundled app icon is this dog (`dog.fill`, no badge).
+- **SymbolSkin** (`symbol`, default) is the SF Symbols dog with a mood badge, composed in the 24×18-pt menu bar slot: dog at 11.5 pt semibold on the bottom edge, badge at 6.5 pt heavy in the opposite top corner. Frames are template images unless a mood has a coloured part; then ink follows `labelColor`. The bundled app icon is the Pixel pup's Proud sprite in cream on a teal squircle (`scripts/make-icon.swift`; 1 px per cell at 32 px, tail dropped at 16 px).
 
   | Mood | Dog | Badge | Colour |
   |---|---|---|---|

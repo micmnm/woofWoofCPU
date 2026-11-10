@@ -1,5 +1,4 @@
 // Regenerates AppIcon.appiconset: xcrun swift scripts/make-icon.swift
-import AppKit
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -8,34 +7,80 @@ import UniformTypeIdentifiers
 let outDir = "WoofWoofCPU/Resources/Assets.xcassets/AppIcon.appiconset"
 let rgb = CGColorSpaceCreateDeviceRGB()
 
+// Copy of PixelArt.proud (WoofWoofCPU/Skins/PixelArt.swift), not shared code: '#' body, 'o' eye, 'p' tongue.
+let proud = [
+    "#.................",
+    ".#..........#.#...",
+    "..#........#####..",
+    "..#........#o####.",
+    "...#.......####p..",
+    "...#.......###.p..",
+    "....#.....####....",
+    ".....#...#####....",
+    "......#.######....",
+    ".......#######....",
+    "....##########....",
+    "........#..#.#....",
+]
+
+func hex(_ v: Int, _ a: CGFloat = 1) -> CGColor {
+    CGColor(red: CGFloat((v >> 16) & 255) / 255, green: CGFloat((v >> 8) & 255) / 255, blue: CGFloat(v & 255) / 255, alpha: a)
+}
+
+func color(_ c: Character) -> CGColor? {
+    switch c {
+    case "#": return hex(0xffe9c4)
+    case "o": return hex(0x0b3640)
+    case "p": return hex(0xff2d55)
+    default: return nil
+    }
+}
+
 func render(_ px: Int) -> CGImage {
     let s = CGFloat(px)
+    let small = px <= 64
     let ctx = CGContext(data: nil, width: px, height: px, bitsPerComponent: 8, bytesPerRow: 0,
                         space: rgb, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
     // macOS icon grid: 824/1024 body with ~22.4% corner radius.
     let body = CGRect(x: s * 0.0977, y: s * 0.0977, width: s * 0.8047, height: s * 0.8047)
     let path = CGPath(roundedRect: body, cornerWidth: body.width * 0.225, cornerHeight: body.width * 0.225, transform: nil)
+
+    if !small {
+        ctx.saveGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: -s * 0.012), blur: s * 0.025, color: hex(0x000000, 0.35))
+        ctx.addPath(path)
+        ctx.setFillColor(hex(0x1a6f78))
+        ctx.fillPath()
+        ctx.restoreGState()
+    }
+
     ctx.saveGState()
     ctx.addPath(path)
     ctx.clip()
-    let colors = [CGColor(red: 1.0, green: 0.93, blue: 0.80, alpha: 1), CGColor(red: 0.98, green: 0.62, blue: 0.28, alpha: 1)]
-    let gradient = CGGradient(colorsSpace: rgb, colors: colors as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(gradient, start: CGPoint(x: s / 2, y: body.maxY), end: CGPoint(x: s / 2, y: body.minY), options: [])
+    let teal = CGGradient(colorsSpace: rgb, colors: [hex(0x2f8f95), hex(0x0f4f5c)] as CFArray, locations: [0, 1])!
+    ctx.drawLinearGradient(teal, start: CGPoint(x: s / 2, y: body.maxY), end: CGPoint(x: s / 2, y: body.minY), options: [])
+    let glow = CGGradient(colorsSpace: rgb, colors: [hex(0xffffff, 0.16), hex(0xffffff, 0)] as CFArray, locations: [0, 1])!
+    ctx.drawLinearGradient(glow, start: CGPoint(x: s / 2, y: body.maxY), end: CGPoint(x: s / 2, y: body.midY + body.height * 0.1), options: [])
     ctx.restoreGState()
 
-    // Same symbol and weight as the Symbol skin's plain pose (SymbolDog.swift), not shared code; the PNGs depend on the installed SF Symbols version.
-    let config = NSImage.SymbolConfiguration(pointSize: body.width * 0.5, weight: .semibold)
-    let dog = NSImage(systemSymbolName: "dog.fill", accessibilityDescription: nil)!.withSymbolConfiguration(config)!
-    let rect = CGRect(x: body.midX - dog.size.width / 2, y: body.midY - dog.size.height / 2,
-                      width: dog.size.width, height: dog.size.height)
-    NSGraphicsContext.saveGraphicsState()
-    NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
-    ctx.beginTransparencyLayer(in: rect, auxiliaryInfo: nil)
-    dog.draw(in: rect)
-    NSColor(red: 0.165, green: 0.102, blue: 0.063, alpha: 1).set()
-    rect.fill(using: .sourceAtop)
-    ctx.endTransparencyLayer()
-    NSGraphicsContext.restoreGraphicsState()
+    // At 16 px the whole sprite doesn't fit the tile, so the tail and back-strip columns are dropped.
+    let cropFrom = px <= 16 ? 7 : 0
+    let rows = proud.count
+    var minC = 99, maxC = 0, minR = 99, maxR = 0
+    for (r, row) in proud.enumerated() { for (c, ch) in row.enumerated() where ch != "." && c >= cropFrom {
+        minC = min(minC, c); maxC = max(maxC, c); minR = min(minR, r); maxR = max(maxR, r)
+    } }
+    let w = maxC - minC + 1, h = maxR - minR + 1
+    let cell = max(1, Int((body.width * (small ? 0.80 : 0.74) / CGFloat(w)).rounded(.down)))
+    // Whole-pixel cells and origin, antialiasing off, so every size stays crisp.
+    let ox = Int((body.midX - CGFloat(w * cell) / 2).rounded()) - minC * cell
+    let oy = Int((body.midY - CGFloat(h * cell) / 2).rounded()) - (rows - 1 - maxR) * cell
+    ctx.setShouldAntialias(false)
+    for (r, row) in proud.enumerated() { for (c, ch) in row.enumerated() where c >= cropFrom {
+        guard let col = color(ch) else { continue }
+        ctx.setFillColor(col)
+        ctx.fill(CGRect(x: ox + c * cell, y: oy + (rows - 1 - r) * cell, width: cell, height: cell))
+    } }
     return ctx.makeImage()!
 }
 

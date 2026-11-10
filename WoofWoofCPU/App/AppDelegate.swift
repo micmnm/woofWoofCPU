@@ -148,8 +148,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(mute)
         menu.addItem(ClosureMenuItem("Settings…") { [weak self] in self?.settingsWindow.show() })
         menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem("About woofWoofCPU") { Self.showAbout() })
         menu.addItem(ClosureMenuItem("Quit woofWoofCPU") { NSApp.terminate(nil) })
         return menu
+    }
+
+    /// Shown as "More about woofWoofCPU" in About once the page exists.
+    private static let aboutPage: String? = nil
+
+    private static func showAbout() {
+        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        let centered = NSMutableParagraphStyle()
+        centered.alignment = .center
+        centered.paragraphSpacing = 4
+        let plain: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor, .paragraphStyle: centered]
+        func text(_ string: String, link: String? = nil) -> NSAttributedString {
+            var attributes = plain
+            if let link { attributes[.link] = URL(string: link)! }
+            return NSAttributedString(string: string, attributes: attributes)
+        }
+        let side = font.pointSize
+        let mark = NSImage(named: "GitHubMark")!
+        // Drawing handler resolves labelColor at draw time, so the mark follows dark mode.
+        let tinted = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+            mark.draw(in: rect)
+            NSColor.labelColor.set()
+            rect.fill(using: .sourceIn)
+            return true
+        }
+        let attachment = NSTextAttachment()
+        attachment.image = tinted
+        attachment.bounds = CGRect(x: 0, y: -2, width: side, height: side)
+        let credits = NSMutableAttributedString(attributedString: text("Mircea Militaru  "))
+        credits.append(NSAttributedString(attachment: attachment))
+        credits.append(text(" micmnm", link: "https://github.com/micmnm"))
+        // The licence requires the bark credit to ship with the app; the long form lives on the about page.
+        credits.append(text("\nBark by "))
+        credits.append(text("Amada44, CC BY-SA 3.0", link: "https://commons.wikimedia.org/wiki/File:Barking_of_a_dog.ogg"))
+        if let aboutPage {
+            credits.append(text("\n"))
+            credits.append(text("More about woofWoofCPU", link: aboutPage))
+        }
+        credits.addAttribute(.paragraphStyle, value: centered, range: NSRange(location: 0, length: credits.length))
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 }
 

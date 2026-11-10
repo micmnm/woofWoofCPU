@@ -8,11 +8,30 @@ A macOS menu bar dog that watches your apps and processes. When one hurts your M
 - **Decides** like a guard dog, not a stopwatch: it barks when the Mac is actually strained (short on memory, running hot, or busy) and one app is the cause, or when a single process sits on a full core. It learns what is usual for each app, so your browser's normal 2 GB or an Xcode build isn't blamed, and the popover says when the Mac is strained.
 - **Escalates** when something stays over its limit: the dog naps, sniffs (?), growls (orange !!), then **barks** — a red dog, a real bark, and reminder barks at +10/+30/+90 s. It never pops anything up on its own.
 - **Click the dog** for the live top list; while it's barking the popover opens in alert mode with the culprit first. Per app or per process: **Quit** (hold ⌥ for **Kill**), **Snooze** (15 min / 1 h / until tomorrow), **Ignore** (keeps the dog quiet about that app until it has been calm for 10 minutes), **Always ignore**. Dismissing a bark makes the dog sulk; quitting the hog makes it proud.
-- **Settings:** sensitivity slider (Chill ↔ Paranoid) with exact Advanced limits, patrol speed (2/5/10/30 s), rows shown, mute, launch at login, breed, ignore list, snoozes and forgetting what's usual. Right-click the dog to pause watching or quit.
+- **Settings:** sensitivity slider (Chill ↔ Paranoid) with exact Advanced limits, patrol speed (2/5/10/30 s), rows shown, mute, launch at login, breed, ignore list, snoozes and forgetting what's usual. Right-click the dog to pause watching, see About or quit.
 - **Breeds (skins):** Classic (default), 8-bit classic, Pixel pup, Shiba.
 - **Light on the Mac:** about 0.7 % of one core while calm.
 
 Watches only your own processes (system/other users' processes need privileges). No network monitoring yet.
+
+## Install
+
+Requires macOS 14 or later. Download the zip from `<download link>`, unzip it and drag woofWoofCPU.app to /Applications (launch at login is only reliable from there).
+
+The app is not notarized, so macOS blocks it on first launch. Open System Settings → Privacy & Security and click **Open Anyway** next to the woofWoofCPU message, or run:
+
+    xattr -dr com.apple.quarantine /Applications/woofWoofCPU.app
+
+It needs no permissions: it only watches your own user's processes.
+
+woofWoofCPU is free to use. © 2026 Mircea Militaru ([micmnm](https://github.com/micmnm)), all rights reserved; the source is not published.
+
+## Uninstall
+
+1. In Settings, turn off launch at login.
+2. Right-click the dog and choose Quit woofWoofCPU.
+3. Delete /Applications/woofWoofCPU.app.
+4. Remove its data: `defaults delete com.woofwoofcpu.app` (settings, `~/Library/Preferences/com.woofwoofcpu.app.plist`) and `rm -r ~/Library/Application\ Support/woofWoofCPU` (what's usual for each app).
 
 ## Docs
 
@@ -30,6 +49,7 @@ Requires Xcode (at `/Applications/Xcode.app`) and XcodeGen (`brew install xcodeg
     make test        # WoofCore and MiawCore unit tests
     make run         # generate the Xcode project, build, launch the menu bar app
     make install     # copy to /Applications (needed for reliable launch at login)
+    make dist        # universal, ad-hoc signed build/woofWoofCPU-<version>.zip for download
 
 To see the dog bark quickly: set Settings → Sensitivity to **Paranoid** (a process at a full core barks after 3 min), then run `scripts/hog.sh cpu 300`.
 
