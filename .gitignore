@@ -9,6 +9,7 @@ xcuserdata/
 DerivedData/
 build/
 bin/
+dist/
 *.moved-aside
 *.hmap
 *.ipa
@@ -34,3 +35,10 @@ bin/
 
 # Local scratch
 tmp/
+
+# Landing page (site/)
+site/node_modules
+site/dist
+site/.astro
+site/public/woofWoofCPU.dmg
+site/tmp-render

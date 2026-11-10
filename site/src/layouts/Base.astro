@@ -1,0 +1,131 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <meta name="author" content="Mircea Militaru" />
+    <link rel="author" href="https://mltru.com" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/img/icon.png" />
+  </head>
+  <body>
+    <slot />
+    <footer>
+      <p>
+        Made by <a href="https://mltru.com">Mircea Militaru</a>, &copy; 2026. Bark: <a href="https://commons.wikimedia.org/wiki/File:Barking_of_a_dog.ogg">“Barking of a dog”</a>
+        by Amada44, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>. Glyphs: SF Symbols.
+      </p>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg: #f8f4ec;
+    --card: #ffffff;
+    --border: #e4dccd;
+    --text: #1f2a2d;
+    --muted: #55625f;
+    --accent: #0f5f68;
+    --accent-text: #ffffff;
+    --growl: #b25a00;
+    --bark: #c62828;
+    --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10191b;
+      --card: #172427;
+      --border: #26393d;
+      --text: #e8eeee;
+      --muted: #a2b2b1;
+      --accent: #6cc6c9;
+      --accent-text: #08262b;
+      --growl: #ffa53d;
+      --bark: #ff6b5e;
+    }
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  main, footer {
+    max-width: 50rem;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+
+  h1, h2, h3 {
+    line-height: 1.2;
+    margin: 0 0 0.5rem;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+    margin-top: 4rem;
+  }
+
+  p {
+    margin: 0 0 1rem;
+  }
+
+  a {
+    color: var(--accent);
+  }
+
+  code, kbd {
+    font-family: var(--mono);
+    font-size: 0.9em;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .pixelated {
+    image-rendering: pixelated;
+  }
+
+  footer {
+    width: min(48rem, 100% - 2rem);
+    margin: 5rem auto 0;
+    padding: 1.5rem 0 2.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+
+  footer p {
+    margin: 0 0 0.25rem;
+  }
+
+  footer a {
+    color: inherit;
+  }
+</style>

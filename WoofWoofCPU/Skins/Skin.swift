@@ -35,7 +35,8 @@ extension Skin {
 
 @MainActor
 enum SkinRegistry {
-    static let all: [any Skin] = [SymbolSkin(), PixelSymbolSkin(), PixelSkin(), ShibaSkin()]
+    // PixelSymbolSkin and ShibaSkin are kept but hidden; a saved hidden id falls back to Classic.
+    static let all: [any Skin] = [SymbolSkin(), PixelSkin()]
 
     static func skin(id: String) -> any Skin {
         all.first { $0.id == id } ?? all[0]

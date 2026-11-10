@@ -1,0 +1,20 @@
+---
+import Base from "../layouts/Base.astro";
+---
+
+<Base title="Not found: woofWoofCPU">
+  <main>
+    <picture>
+      <source srcset="/img/pixel-sniffing-dark.png" media="(prefers-color-scheme: dark)" />
+      <img class="pixelated" src="/img/pixel-sniffing-light.png" width="144" height="96" alt="The pixel dog, sniffing" />
+    </picture>
+    <h1>Sniff sniff… nothing here.</h1>
+    <p>This page doesn't exist. <a href="/">Back to woofWoofCPU</a>.</p>
+  </main>
+</Base>
+
+<style>
+  main {
+    padding-top: 5rem;
+  }
+</style>

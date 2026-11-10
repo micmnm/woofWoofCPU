@@ -207,6 +207,7 @@ struct DogSettings: View {
                     Text(skin.displayName).tag(skin.id)
                 }
             }
+            .pickerStyle(.segmented)
             HStack(spacing: 12) {
                 ForEach(DogMood.allCases, id: \.self) { mood in
                     VStack {

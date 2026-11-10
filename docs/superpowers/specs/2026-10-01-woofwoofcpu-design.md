@@ -34,7 +34,7 @@ Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors 
 - A bigger memory **bowl** per app, for apps that legitimately need more memory.
 - Click dog → live top list (mini Activity Monitor).
 - Launch at login, pause watching.
-- Four breeds (skins): **Classic** (default), **8-bit classic**, **Pixel pup** and **Shiba**; switchable in Settings.
+- Two breeds (skins): **Classic** (default) and **Pixel pup**; switched with a segmented toggle in Settings. **8-bit classic** and **Shiba** stay in the code but are hidden.
 
 ### Explicitly out of v1
 
@@ -54,7 +54,7 @@ Gap it fills (see `docs/research/2026-10-01-similar-apps.md`): popular monitors 
 - **Tests:** Swift Testing (`import Testing`, `@Test`, `#expect`).
 - **Agent app:** `LSUIElement = YES` (no Dock icon, no app menu).
 - **Terms:** free, closed source; © 2026 Mircea Militaru.
-- **Distribution:** `make dist` builds a universal (arm64 + x86_64) Release app, ad-hoc signed and not notarized, and zips it to `build/woofWoofCPU-<version>.zip`. The version comes from `MARKETING_VERSION` in `project.yml`.
+- **Distribution:** `make dist` builds an Apple silicon (arm64) Release app, ad-hoc signed and not notarized, keeps it and a drag-to-Applications disk image in `dist/` (`woofWoofCPU.app`, `woofWoofCPU-<version>.dmg`) and drops the build intermediates. The version comes from `MARKETING_VERSION` in `project.yml`.
 - **Signing:** automatic signing with the personal team ("Sign to Run Locally" is acceptable at first). Hardened runtime on, so notarization later is a config change rather than a rework.
 
 ### Repository layout
@@ -337,7 +337,7 @@ protocol Skin {
 }
 ```
 
-Four skins, in picker order (Settings calls the picker **Breed**; the names shown are Classic, 8-bit classic, Pixel pup and Shiba):
+Four skins exist; Settings shows only Classic and Pixel pup, as a segmented **Breed** toggle (`SkinRegistry.all`). A saved id of a hidden skin falls back to Classic:
 
 - **SymbolSkin** (`symbol`, default) is the SF Symbols dog with a mood badge, composed in the 24×18-pt menu bar slot: dog at 11.5 pt semibold on the bottom edge, badge at 6.5 pt heavy in the opposite top corner. Frames are template images unless a mood has a coloured part; then ink follows `labelColor`. The bundled app icon is the Pixel pup's Proud sprite in cream on a teal squircle (`scripts/make-icon.swift`; 1 px per cell at 32 px, tail dropped at 16 px).
 

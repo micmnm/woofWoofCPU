@@ -1,0 +1,849 @@
+---
+import Base from "../layouts/Base.astro";
+
+// Images are rendered from the app's own skin code.
+const dog = (skin: string, mood: string) => ({
+  light: `/img/${skin}-${mood}-light.png`,
+  dark: `/img/${skin}-${mood}-dark.png`,
+});
+
+const moods = [
+  { name: "Napping", line: "All apps behaving. On duty, technically." },
+  { name: "Sniffing", line: "Something smells busy. Ears up." },
+  { name: "Growling", line: "Still at it? Grrr. Last warning.", tone: "growl" },
+  { name: "Barking", line: "Red dog, real bark. You will notice.", tone: "bark" },
+];
+
+const barMoods = ["napping", "sniffing", "growling", "barking"];
+const sprite = (mood: string, scheme: string) => `/img/pixel-${mood}-${scheme}.png`;
+
+// Made-up apps (docs/voice.md: no real brands). Alert mode: the barking app first, then by CPU.
+const rows = [
+  { name: "TabHoarder", value: "312%", over: "12m 30s", hue: 8, hog: true, series: [40, 60, 95, 150, 210, 260, 240, 290, 300, 312] },
+  { name: "Pixel Forge", value: "64%", hue: 265, series: [20, 35, 50, 42, 60, 70, 58, 66, 61, 64] },
+  { name: "Chatterbox", value: "18%", hue: 140, series: [12, 22, 15, 30, 18, 14, 25, 16, 20, 18] },
+  { name: "Mailroom", value: "6%", hue: 210, series: [8, 4, 5, 9, 6, 3, 7, 5, 6, 6] },
+  { name: "backupd", value: "3%", process: true, series: [2, 3, 2, 4, 3, 2, 3, 5, 3, 3] },
+];
+
+// Sparkline: 60×18 box, scaled to the hog's peak so the small apps look small.
+const top = 312 * 1.15;
+const spark = (values: number[]) =>
+  values.map((v, i) => `${((i / (values.length - 1)) * 60).toFixed(1)},${(18 - (v / top) * 18).toFixed(1)}`).join(" ");
+const limitY = (18 - (150 / top) * 18).toFixed(1);
+---
+
+<Base
+  title="woofWoofCPU: a dog that barks at greedy apps"
+  description="A dog that lives in your Mac's menu bar and barks at apps hogging the CPU or memory."
+>
+  <main>
+    <header class="hero">
+      <div class="menubar" data-mood="cycle">
+        <span class="app" aria-hidden="true">woofWoofCPU</span>
+        <span class="menu" aria-hidden="true">File</span>
+        <span class="menu" aria-hidden="true">Edit</span>
+        <span class="menu" aria-hidden="true">View</span>
+        <span class="spacer"></span>
+        <span class="extra">
+          <button class="dog" type="button" aria-expanded="false" aria-controls="pop" aria-label="woofWoofCPU: barking at TabHoarder">
+            {barMoods.map((m) => (
+              <picture class={`m m-${m}`}>
+                <source srcset={sprite(m, "dark")} media="(prefers-color-scheme: dark)" />
+                <img class="pixelated" src={sprite(m, "light")} width="48" height="32" alt="" />
+              </picture>
+            ))}
+          </button>
+          <span class="hint" aria-hidden="true">psst, click the dog</span>
+
+          <div class="pop" id="pop" role="dialog" aria-label="woofWoofCPU" tabindex="-1" hidden>
+            <div class="ph">
+              <picture class="portrait">
+                <source data-scheme="dark" srcset={sprite("barking", "dark")} media="(prefers-color-scheme: dark)" />
+                <img class="pixelated" src={sprite("barking", "light")} width="72" height="48" alt="Dog is barking" />
+              </picture>
+              <div>
+                <p class="headline" aria-live="polite">WOOF! TabHoarder has been running laps for 12m!</p>
+                <p class="sub">Barks at 150% after 5m</p>
+              </div>
+            </div>
+            <hr />
+            <ul class="rows">
+              {rows.map((r) => (
+                <li class:list={["row", { alert: r.hog }]} data-hog={r.hog ? "" : undefined} data-name={r.name}>
+                  <span class:list={["ic", { proc: r.process }]} style={r.hue !== undefined ? `--h: ${r.hue}` : undefined} aria-hidden="true">
+                    {r.process ? ">_" : r.name[0]}
+                  </span>
+                  <span class="nm">
+                    <span class="name">{r.name}</span>
+                    <span class="val">{r.value}{r.over && ` · over for ${r.over}`}</span>
+                  </span>
+                  <svg class="spark" viewBox="0 0 60 18" aria-hidden="true">
+                    {r.hog && <line x1="0" x2="60" y1={limitY} y2={limitY} class="limit" />}
+                    <polyline points={spark(r.series)} />
+                  </svg>
+                  <button class="quit" type="button" data-act="quit" title="Ask it to quit (hold ⌥ to Kill)">Quit</button>
+                  <span class="more-wrap">
+                    <button class="more" type="button" aria-label={`More actions for ${r.name}`} aria-expanded="false">
+                      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" /><circle cx="5" cy="8" r=".9" class="dot" /><circle cx="8" cy="8" r=".9" class="dot" /><circle cx="11" cy="8" r=".9" class="dot" /></svg>
+                    </button>
+                    <span class="menu-pop" hidden>
+                      <button type="button" data-act="snooze">Snooze for 15 minutes</button>
+                      <button type="button" data-act="ignore">Ignore for now</button>
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <hr />
+            <div class="pf" aria-hidden="true">
+              <span><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" /><path d="M6.5 5.5v5M9.5 5.5v5" /></svg>Pause</span>
+              <span><svg viewBox="0 0 16 16"><path d="M2.5 6h2.5l3.5-3v10l-3.5-3H2.5z" /><path d="M11 5.5q1.5 2.5 0 5M12.8 4q2.6 4 0 8" /></svg></span>
+              <span class="spacer"></span>
+              <span>Settings…</span>
+            </div>
+          </div>
+        </span>
+        <span class="clock" aria-hidden="true">Tue 9:41</span>
+      </div>
+
+      <img class="icon" src="/img/icon.png" width="128" height="128" alt="woofWoofCPU app icon: a pixel-art dog on teal" />
+      <h1>woofWoofCPU</h1>
+      <p class="tagline">
+        The Mac got hot. The fans <span class="squiggle">took off.<svg viewBox="0 0 120 14" preserveAspectRatio="none" aria-hidden="true"><path d="M2 9 C 14 2, 22 2, 30 8 S 48 13, 58 7 S 76 1, 86 7 S 104 12, 118 5" /></svg></span>
+      </p>
+      <p class="pitch">A dog that lives in your menu bar and barks at apps eating your Mac.</p>
+      <p><a class="download" href="/woofWoofCPU.dmg" download>Download for Mac</a></p>
+      <p class="meta">macOS 14+, Apple silicon. Free. The dog works for kibble.</p>
+    </header>
+
+    <section aria-labelledby="why">
+      <h2 id="why">Why a dog?</h2>
+      <p>
+        Somewhere in the background, some app was quietly chewing the CPU. Which one? Cue yet another
+        dig through Activity Monitor.<br />So now a dog does the watching. It never sleeps. Well, it
+        naps. On duty.
+      </p>
+    </section>
+
+    <section aria-labelledby="moods">
+      <h2 id="moods">Moods</h2>
+      <ul class="moods">
+        {moods.map((m) => (
+          <li class:list={["card", m.tone]}>
+            <picture>
+              <source srcset={dog("pixel", m.name.toLowerCase()).dark} media="(prefers-color-scheme: dark)" />
+              <img class="pixelated" src={dog("pixel", m.name.toLowerCase()).light} width="144" height="96" alt="" />
+            </picture>
+            <h3>{m.name}</h3>
+            <p>{m.line}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section aria-labelledby="barks">
+      <h2 id="barks">It barked. Now what?</h2>
+      <p>
+        Click the dog. Quit the hog (hold <kbd>⌥</kbd> to Kill), Snooze it, or Ignore it and let the
+        dog sulk about it.
+      </p>
+    </section>
+
+    <section aria-labelledby="install">
+      <h2 id="install">First launch</h2>
+      <p>
+        Open the disk image, drag the dog to Applications. macOS will then refuse to open it, because the dog skipped
+        Apple's notarization paperwork.<br />Right-click the app → <strong>Open</strong>. Still grumpy? System
+        Settings → Privacy &amp; Security → <strong>Open Anyway</strong>.
+      </p>
+    </section>
+  </main>
+</Base>
+
+<script>
+  const bar = document.querySelector<HTMLElement>(".menubar")!;
+  const dog = bar.querySelector<HTMLButtonElement>(".dog")!;
+  const pop = bar.querySelector<HTMLElement>(".pop")!;
+  const headline = pop.querySelector<HTMLElement>(".headline")!;
+  const sub = pop.querySelector<HTMLElement>(".sub")!;
+  const portrait = pop.querySelector<HTMLImageElement>(".portrait img")!;
+  const portraitDark = pop.querySelector<HTMLSourceElement>(".portrait source")!;
+  let mood = "barking";
+
+  function setMood(next: string, line: string) {
+    mood = next;
+    portrait.src = `/img/pixel-${next}-light.png`;
+    portraitDark.srcset = `/img/pixel-${next}-dark.png`;
+    portrait.alt = `Dog is ${next}`;
+    headline.textContent = line;
+    sub.hidden = true;
+    bar.dataset.mood = next;
+    dog.setAttribute("aria-label", `woofWoofCPU: ${next}`);
+  }
+
+  function closeMenus() {
+    pop.querySelectorAll<HTMLElement>(".menu-pop").forEach((m) => (m.hidden = true));
+    pop.querySelectorAll(".more").forEach((b) => b.setAttribute("aria-expanded", "false"));
+  }
+
+  function open() {
+    pop.hidden = false;
+    dog.setAttribute("aria-expanded", "true");
+    bar.classList.add("seen");
+    if (bar.dataset.mood === "cycle") bar.dataset.mood = mood;
+    pop.focus();
+  }
+
+  function close(returnFocus = false) {
+    if (pop.hidden) return;
+    closeMenus();
+    pop.hidden = true;
+    pop.classList.remove("opt");
+    dog.setAttribute("aria-expanded", "false");
+    if (returnFocus) dog.focus();
+  }
+
+  dog.addEventListener("click", () => (pop.hidden ? open() : close()));
+
+  document.addEventListener("click", (e) => {
+    const t = e.target as Node;
+    if (!pop.contains(t) && !dog.contains(t)) close();
+    if (!(t instanceof Element) || !t.closest(".more-wrap")) closeMenus();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (pop.querySelector(".menu-pop:not([hidden])")) closeMenus();
+      else close(true);
+    }
+    if (e.key === "Alt") pop.classList.add("opt");
+  });
+  document.addEventListener("keyup", (e) => {
+    if (e.key === "Alt") pop.classList.remove("opt");
+  });
+  window.addEventListener("blur", () => pop.classList.remove("opt"));
+
+  function remove(row: HTMLElement, status: string, delay: number) {
+    row.querySelector(".val")!.textContent = status;
+    row.classList.add("busy");
+    setTimeout(() => {
+      row.classList.add("gone");
+      row.addEventListener("animationend", () => row.remove(), { once: true });
+      // Reduced motion has no animation, so animationend never fires.
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) row.remove();
+    }, delay);
+  }
+
+  pop.addEventListener("click", (e) => {
+    const target = e.target as Element;
+    const more = target.closest<HTMLButtonElement>(".more");
+    if (more) {
+      const menu = more.nextElementSibling as HTMLElement;
+      const wasOpen = !menu.hidden;
+      closeMenus();
+      menu.hidden = wasOpen;
+      more.setAttribute("aria-expanded", String(!wasOpen));
+      if (!wasOpen) menu.querySelector("button")!.focus();
+      return;
+    }
+    const act = target.closest<HTMLButtonElement>("[data-act]");
+    if (!act) return;
+    const row = act.closest<HTMLElement>(".row")!;
+    const name = row.dataset.name!;
+    const hog = row.hasAttribute("data-hog");
+    const kill = pop.classList.contains("opt");
+    closeMenus();
+    pop.focus();
+
+    if (act.dataset.act === "quit") {
+      remove(row, kill ? "Gone." : "Asking politely…", kill ? 150 : 900);
+      if (hog) setTimeout(() => setMood("napping", "Bad app chased off! Back to napping."), kill ? 300 : 1100);
+    } else if (act.dataset.act === "snooze") {
+      remove(row, "Snoozed for 15 minutes", 700);
+      if (hog) setTimeout(() => setMood("napping", "All apps behaving. Napping on duty."), 900);
+    } else {
+      remove(row, "Ignored for now", 700);
+      if (hog) setTimeout(() => setMood("sniffing", `Fine. I'll just keep an eye on ${name}. 🙄`), 900);
+    }
+  });
+</script>
+
+<style>
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 2rem 0 1rem;
+  }
+
+  .menubar {
+    position: relative;
+    z-index: 5;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    height: 2.5rem;
+    padding: 0 1rem;
+    margin-bottom: 3.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--card) 70%, transparent);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.5) inset, 0 8px 24px -12px rgb(0 0 0 / 0.15);
+    font-size: 0.8125rem;
+    text-align: left;
+  }
+
+  .app {
+    font-weight: 700;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+
+  .clock {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .extra {
+    position: relative;
+    display: flex;
+  }
+
+  .dog {
+    position: relative;
+    width: 56px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .dog:hover,
+  .dog[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+  }
+
+  .dog:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .m {
+    position: absolute;
+    top: 0;
+    left: 4px;
+    opacity: 0;
+    animation: mood 8s steps(1, end) infinite;
+  }
+
+  .m img {
+    display: block;
+  }
+
+  .m-napping { animation-delay: 0s; }
+  .m-sniffing { animation-delay: -6s; }
+  .m-growling { animation-delay: -4s; }
+  .m-barking { animation-delay: -2s; }
+
+  @keyframes mood {
+    0% { opacity: 1; }
+    25%, 100% { opacity: 0; }
+  }
+
+  /* Once clicked, the dog holds the popover's mood instead of cycling. */
+  .menubar:not([data-mood="cycle"]) .m {
+    animation: none;
+  }
+
+  .menubar[data-mood="napping"] .m-napping,
+  .menubar[data-mood="sniffing"] .m-sniffing,
+  .menubar[data-mood="barking"] .m-barking {
+    opacity: 1;
+  }
+
+  .hint {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 1.25rem;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-style: italic;
+    opacity: 0;
+    animation: hint 0.6s 2s ease-out forwards;
+    pointer-events: none;
+  }
+
+  .hint::after {
+    content: " ↑";
+    font-style: normal;
+  }
+
+  .seen .hint {
+    display: none;
+  }
+
+  @keyframes hint {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* The real panel is 380pt wide with its right edge 40pt right of the dog's centre. */
+  .pop {
+    position: absolute;
+    top: calc(100% + 0.55rem);
+    right: -12px;
+    width: 380px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--card) 96%, transparent);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    box-shadow: 0 18px 50px -12px rgb(0 0 0 / 0.35), 0 0 0 0.5px rgb(0 0 0 / 0.08);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.3;
+    text-align: left;
+    transform-origin: top right;
+    animation: pop-in 0.16s ease-out;
+  }
+
+  .pop:focus {
+    outline: none;
+  }
+
+  @keyframes pop-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  }
+
+  .pop p {
+    margin: 0;
+  }
+
+  .pop hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 10px 0;
+  }
+
+  .ph {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .portrait img {
+    display: block;
+  }
+
+  .headline {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .sub {
+    margin-top: 2px !important;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px 4px 22px;
+    border-radius: 6px;
+    max-height: 3rem;
+  }
+
+  .row:hover {
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+  }
+
+  .row.alert {
+    background: color-mix(in srgb, var(--bark) 9%, transparent);
+  }
+
+  .row.alert:hover {
+    background: color-mix(in srgb, var(--bark) 14%, transparent);
+  }
+
+  .row.busy {
+    opacity: 0.6;
+  }
+
+  .row.gone {
+    overflow: hidden;
+    animation: gone 0.35s ease-in forwards;
+  }
+
+  @keyframes gone {
+    to { opacity: 0; max-height: 0; padding-block: 0; transform: translateX(12px); }
+  }
+
+  .ic {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: linear-gradient(160deg, hsl(var(--h) 70% 62%), hsl(var(--h) 60% 45%));
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .ic.proc {
+    background: #2b3236;
+    color: #d6dfdf;
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: -0.05em;
+  }
+
+  .nm {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+  }
+
+  .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .alert .name {
+    font-weight: 600;
+  }
+
+  .val {
+    font-size: 10px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .spark {
+    flex: none;
+    width: 60px;
+    height: 18px;
+    overflow: visible;
+  }
+
+  .spark polyline {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+
+  .alert .spark polyline {
+    stroke: var(--bark);
+  }
+
+  .spark .limit {
+    stroke: var(--muted);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+
+  .quit {
+    flex: none;
+    min-width: 42px;
+    padding: 2px 8px;
+    border: 0;
+    border-radius: 5px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font: 600 11px/1.4 var(--font);
+    cursor: pointer;
+  }
+
+  .quit:hover {
+    filter: brightness(1.1);
+  }
+
+  .opt .quit {
+    background: var(--bark);
+    color: #fff;
+    font-size: 0;
+  }
+
+  .opt .quit::after {
+    content: "Kill";
+    font-size: 11px;
+  }
+
+  .more-wrap {
+    position: relative;
+    flex: none;
+    display: flex;
+  }
+
+  .more {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+  }
+
+  .more svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.2;
+  }
+
+  .more .dot {
+    fill: currentColor;
+    stroke: none;
+  }
+
+  .more:hover,
+  .more[aria-expanded="true"] {
+    color: var(--text);
+  }
+
+  .quit:focus-visible,
+  .more:focus-visible,
+  .menu-pop button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .menu-pop {
+    position: absolute;
+    z-index: 2;
+    top: calc(100% + 4px);
+    right: 0;
+    display: grid;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    box-shadow: 0 10px 30px -8px rgb(0 0 0 / 0.3);
+  }
+
+  .menu-pop[hidden] {
+    display: none;
+  }
+
+  .menu-pop button {
+    padding: 3px 10px;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--text);
+    font: 12px/1.4 var(--font);
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .menu-pop button:hover {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+
+  .pf {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .pf span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .pf svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .icon {
+    margin-bottom: 1.25rem;
+    filter: drop-shadow(0 10px 18px rgb(15 95 104 / 0.25));
+  }
+
+  h1 {
+    font-size: 3.5rem;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    margin-bottom: 0.75rem;
+  }
+
+  .tagline {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: 0.75rem;
+  }
+
+  .squiggle {
+    position: relative;
+    white-space: nowrap;
+  }
+
+  .squiggle svg {
+    position: absolute;
+    left: -2%;
+    bottom: -0.45em;
+    width: 104%;
+    height: 0.55em;
+    overflow: visible;
+  }
+
+  .squiggle path {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 200;
+    stroke-dashoffset: 200;
+    animation: draw 0.9s 0.4s ease-out forwards;
+  }
+
+  @keyframes draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  .pitch {
+    color: var(--muted);
+    max-width: 30rem;
+    margin-bottom: 1.5rem;
+    text-wrap: balance;
+  }
+
+  .download {
+    display: inline-block;
+    padding: 0.75rem 1.75rem;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .download:hover {
+    filter: brightness(1.1);
+  }
+
+  .download:focus-visible {
+    outline: 3px solid var(--text);
+    outline-offset: 3px;
+  }
+
+  .meta {
+    color: var(--muted);
+    font-size: 0.9375rem;
+    text-wrap: balance;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.9rem;
+    padding: 1rem;
+  }
+
+  /* Text and grids share the one 48rem column; 4 moods fit 144px sprites at that width. */
+  .moods {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+
+  .moods img {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .moods p {
+    margin: 0;
+    font-size: 0.9375rem;
+  }
+
+  .growl h3 {
+    color: var(--growl);
+  }
+
+  .bark h3 {
+    color: var(--bark);
+  }
+
+  kbd {
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    padding: 0 0.3rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .m { animation: none; }
+    .menubar[data-mood="cycle"] .m-barking { opacity: 1; }
+    .squiggle path { animation: none; stroke-dashoffset: 0; }
+    .hint { animation: none; opacity: 1; }
+    .pop { animation: none; }
+  }
+
+  @media (max-width: 50rem) {
+    .moods {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .menu { display: none; }
+    .menubar { margin-bottom: 2.5rem; }
+    .extra { position: static; }
+    .pop {
+      left: 0;
+      right: 0;
+      width: auto;
+      top: calc(100% + 0.4rem);
+    }
+    .row { padding-left: 6px; }
+    .spark { display: none; }
+    .icon { width: 96px; height: 96px; }
+    h1 { font-size: 2.5rem; }
+    .tagline { font-size: 1.3rem; }
+
+    /* Whole 4px cells so the pixel pup stays crisp in a half-width card. */
+    .moods img {
+      width: 96px;
+      height: 64px;
+    }
+  }
+</style>

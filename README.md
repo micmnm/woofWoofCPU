@@ -9,14 +9,14 @@ A macOS menu bar dog that watches your apps and processes. When one hurts your M
 - **Escalates** when something stays over its limit: the dog naps, sniffs (?), growls (orange !!), then **barks** — a red dog, a real bark, and reminder barks at +10/+30/+90 s. It never pops anything up on its own.
 - **Click the dog** for the live top list; while it's barking the popover opens in alert mode with the culprit first. Per app or per process: **Quit** (hold ⌥ for **Kill**), **Snooze** (15 min / 1 h / until tomorrow), **Ignore** (keeps the dog quiet about that app until it has been calm for 10 minutes), **Always ignore**. Dismissing a bark makes the dog sulk; quitting the hog makes it proud.
 - **Settings:** sensitivity slider (Chill ↔ Paranoid) with exact Advanced limits, patrol speed (2/5/10/30 s), rows shown, mute, launch at login, breed, ignore list, snoozes and forgetting what's usual. Right-click the dog to pause watching, see About or quit.
-- **Breeds (skins):** Classic (default), 8-bit classic, Pixel pup, Shiba.
+- **Breeds (skins):** Classic (default) and Pixel pup.
 - **Light on the Mac:** about 0.7 % of one core while calm.
 
 Watches only your own processes (system/other users' processes need privileges). No network monitoring yet.
 
 ## Install
 
-Requires macOS 14 or later. Download the zip from `<download link>`, unzip it and drag woofWoofCPU.app to /Applications (launch at login is only reliable from there).
+Requires macOS 14 or later. Download the dmg from https://woof.mltru.com, open it and drag woofWoofCPU.app to /Applications (launch at login is only reliable from there).
 
 The app is not notarized, so macOS blocks it on first launch. Open System Settings → Privacy & Security and click **Open Anyway** next to the woofWoofCPU message, or run:
 
@@ -40,6 +40,7 @@ woofWoofCPU is free to use. © 2026 Mircea Militaru ([micmnm](https://github.com
 - [Manual checks](docs/manual-checks.md) — UI checklist and what's still unverified
 - [v1 implementation plan](docs/superpowers/plans/2026-10-01-woofwoofcpu-v1.md)
 - [Research on similar apps](docs/research/2026-10-01-similar-apps.md)
+- `site/` — Astro landing page for woof.mltru.com
 - [CLAUDE.md](CLAUDE.md) — working notes for AI-assisted development
 
 ## Build & run
@@ -49,7 +50,8 @@ Requires Xcode (at `/Applications/Xcode.app`) and XcodeGen (`brew install xcodeg
     make test        # WoofCore and MiawCore unit tests
     make run         # generate the Xcode project, build, launch the menu bar app
     make install     # copy to /Applications (needed for reliable launch at login)
-    make dist        # universal, ad-hoc signed build/woofWoofCPU-<version>.zip for download
+    make dist        # Apple silicon, ad-hoc signed app and dmg in dist/, then drops build intermediates
+    make tidy        # drop build intermediates (~1 GB), keep dist/ and bin/
 
 To see the dog bark quickly: set Settings → Sensitivity to **Paranoid** (a process at a full core barks after 3 min), then run `scripts/hog.sh cpu 300`.
 

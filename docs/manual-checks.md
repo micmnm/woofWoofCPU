@@ -13,7 +13,7 @@ Still to check by hand:
 - [ ] Launch at login: enable, approve in System Settings if asked, log out and in; switching it off while approval is pending works.
 - [ ] Right-click menu shows "Pause watching ▸" with 30 min / 1 h / until resumed; Resume appears while paused.
 - [ ] Right-click → "About woofWoofCPU" brings the panel to the front, with the bark credit readable in light and dark mode and working links.
-- [ ] `make dist` zip unzips to an app that passes `codesign --verify --deep --strict` and launches after "Open Anyway".
+- [ ] `make dist` dmg mounts with the app and an Applications link; the app passes `codesign --verify --deep --strict` and launches after "Open Anyway".
 - [ ] Popover on a very short screen clips only at the bottom.
 - [ ] Popover over a full-screen app and on another Space.
 - [ ] Quit an app with unsaved changes (e.g. TextEdit): save prompt appears, row shows "Asking politely…" then "Still here — hold ⌥ to Kill"; nothing is killed automatically.

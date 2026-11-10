@@ -8,7 +8,9 @@ APP := $(DERIVED)/Build/Products/Debug/woofWoofCPU.app
 RELEASE_APP := $(DERIVED)/Build/Products/Release/woofWoofCPU.app
 MIAW := $(ROOT)/Tools/miawMiawCPU
 
-.PHONY: test project build run install dist miaw clean
+DIST := $(ROOT)/dist
+
+.PHONY: test project build run install dist miaw tidy clean
 
 # make test FILTER=MachTimeTests  — run one suite or test (the filter goes to both packages)
 test:
@@ -39,13 +41,27 @@ install: project
 	-pkill -x woofWoofCPU
 	ditto $(RELEASE_APP) /Applications/woofWoofCPU.app
 
-# Universal, ad-hoc signed (not notarized) zip for direct download: build/woofWoofCPU-<version>.zip
+# Apple silicon only, ad-hoc signed (not notarized) app and drag-to-Applications dmg for direct download, kept in dist/;
+# the ~1 GB of build intermediates is dropped afterwards.
 dist: project
 	xcodebuild -quiet -project $(ROOT)/WoofWoofCPU.xcodeproj -scheme WoofWoofCPU \
-		-destination "generic/platform=macOS" ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
+		-destination "generic/platform=macOS" ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
 		-configuration Release -derivedDataPath $(DERIVED) build
 	codesign --verify --deep --strict $(RELEASE_APP)
-	ditto -c -k --keepParent $(RELEASE_APP) "$(ROOT)/build/woofWoofCPU-$$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' $(RELEASE_APP)/Contents/Info.plist).zip"
+	rm -rf $(DIST)
+	mkdir -p $(DIST)
+	ditto $(RELEASE_APP) $(DIST)/woofWoofCPU.app
+	mkdir -p $(DIST)/dmg
+	ditto $(RELEASE_APP) $(DIST)/dmg/woofWoofCPU.app
+	ln -s /Applications $(DIST)/dmg/Applications
+	hdiutil create -quiet -volname woofWoofCPU -srcfolder $(DIST)/dmg -format UDZO -ov \
+		"$(DIST)/woofWoofCPU-$$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' $(RELEASE_APP)/Contents/Info.plist).dmg"
+	rm -rf $(DIST)/dmg
+	$(MAKE) tidy
 
-clean:
-	rm -rf $(ROOT)/build $(ROOT)/Packages/WoofCore/.build $(MIAW)/.build $(ROOT)/bin $(ROOT)/WoofWoofCPU.xcodeproj
+# Drops build intermediates; keeps the products in dist/ and bin/.
+tidy:
+	rm -rf $(ROOT)/build $(ROOT)/Packages/WoofCore/.build $(MIAW)/.build $(ROOT)/WoofWoofCPU.xcodeproj
+
+clean: tidy
+	rm -rf $(ROOT)/bin $(DIST)
