@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.astro
+__pycache__
+*.sketch
+.claude
+.cursor
+.mcp.json
+.env*
+CLAUDE.md
+AGENTS.md
